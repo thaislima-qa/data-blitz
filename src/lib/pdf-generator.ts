@@ -1,6 +1,140 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+export const generatePDF = async (
+  data: Record<string, any>[], 
+  title: string = 'Relatório CSV',
+  logoPath?: string,
+  consolidado?: {
+    totalRecebidoPorForma: Record<string, number>;
+    totalEmAberto: number;
+  }
+) => {
+  if (!data.length) return;
+
+  const doc = new jsPDF();
+  let yPosition = 20;
+
+  // Adicionar logo se fornecida
+  if (logoPath) {
+    try {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+        logoImg.src = logoPath;
+      });
+
+      // Adicionar logo no canto superior direito
+      const logoWidth = 30;
+      const logoHeight = 30;
+      const logoX = doc.internal.pageSize.width - logoWidth - 20;
+      
+      doc.addImage(logoImg, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+    } catch (error) {
+      console.warn('Erro ao carregar logo:', error);
+    }
+  }
+
+  // Título
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text(title, 20, yPosition + 15);
+  yPosition += 35;
+
+  // Adicionar consolidado se fornecido
+  if (consolidado) {
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CONSOLIDADO FINANCEIRO', 20, yPosition);
+    yPosition += 15;
+
+    // Total Recebido por Forma de Pagamento
+    if (Object.keys(consolidado.totalRecebidoPorForma).length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Valores Recebidos por Forma de Pagamento:', 20, yPosition);
+      yPosition += 10;
+
+      doc.setFont('helvetica', 'normal');
+      Object.entries(consolidado.totalRecebidoPorForma)
+        .sort(([,a], [,b]) => b - a)
+        .forEach(([forma, valor]) => {
+          doc.text(`${forma}: R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 25, yPosition);
+          yPosition += 8;
+        });
+      
+      // Total Recebido
+      const totalRecebido = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Recebido: R$ ${totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 25, yPosition);
+      yPosition += 15;
+    }
+
+    // Total em Aberto
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total em Aberto: R$ ${consolidado.totalEmAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 20, yPosition);
+    yPosition += 10;
+
+    // Total Geral
+    const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto;
+    doc.text(`Total Geral: R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 20, yPosition);
+    yPosition += 20;
+
+    // Linha separadora
+    doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
+    yPosition += 15;
+
+    doc.setFontSize(14);
+    doc.text('DADOS DETALHADOS', 20, yPosition);
+    yPosition += 15;
+  }
+
+  // Preparar dados da tabela
+  const columns = Object.keys(data[0]);
+  const rows = data.map(row => columns.map(col => String(row[col] || '')));
+
+  // Adicionar tabela
+  autoTable(doc, {
+    head: [columns],
+    body: rows,
+    startY: yPosition,
+    styles: {
+      fontSize: 8,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: [66, 66, 66],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+    margin: { top: 20, left: 20, right: 20 },
+  });
+
+  // Rodapé
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} - Página ${i} de ${pageCount}`,
+      20,
+      doc.internal.pageSize.height - 10
+    );
+  }
+
+  // Baixar o PDF
+  const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(fileName);
+};
+
 export interface PDFOptions {
   title?: string;
   author?: string;

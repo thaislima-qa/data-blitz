@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Download, FileText, Settings } from "lucide-react";
 import { FilterState } from "@/components/ui/data-filters";
 import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
@@ -25,6 +28,9 @@ export default function Report() {
     totalRecebidoPorForma: Record<string, number>;
     totalEmAberto: number;
   } | null>(null);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [pdfOrientation, setPdfOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [showPdfSettings, setShowPdfSettings] = useState(false);
 
   useEffect(() => {
     const data = location.state as ReportData;
@@ -34,6 +40,12 @@ export default function Report() {
     }
     
     setReportData(data);
+    
+    // Inicializar com todas as colunas selecionadas
+    if (data.filteredData.length > 0) {
+      const columns = Object.keys(data.filteredData[0]);
+      setSelectedColumns(columns);
+    }
     
     // Calcular consolidado
     const { filteredData } = data;
@@ -91,20 +103,51 @@ export default function Report() {
   };
 
   const handleGeneratePDF = async () => {
-    if (!reportData || !consolidado) return;
+    if (!reportData || !consolidado || selectedColumns.length === 0) {
+      toast.error("Selecione pelo menos uma coluna para o PDF");
+      return;
+    }
 
     try {
+      // Filtrar dados para incluir apenas as colunas selecionadas
+      const filteredForPDF = reportData.filteredData.map(row => {
+        const newRow: Record<string, any> = {};
+        selectedColumns.forEach(col => {
+          newRow[col] = row[col];
+        });
+        return newRow;
+      });
+
       await generatePDF(
-        reportData.filteredData, 
+        filteredForPDF, 
         `Relatório Consolidado - ${new Date().toLocaleDateString('pt-BR')}`,
         logoTaianaLima,
-        consolidado
+        consolidado,
+        pdfOrientation
       );
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       toast.error("Erro ao gerar PDF");
     }
+  };
+
+  const handleColumnToggle = (column: string, checked: boolean) => {
+    if (checked) {
+      setSelectedColumns(prev => [...prev, column]);
+    } else {
+      setSelectedColumns(prev => prev.filter(col => col !== column));
+    }
+  };
+
+  const handleSelectAllColumns = () => {
+    if (!reportData?.filteredData.length) return;
+    const allColumns = Object.keys(reportData.filteredData[0]);
+    setSelectedColumns(allColumns);
+  };
+
+  const handleDeselectAllColumns = () => {
+    setSelectedColumns([]);
   };
 
   if (!reportData || !consolidado) {
@@ -136,10 +179,24 @@ export default function Report() {
           </div>
         </div>
         
-        <Button onClick={handleGeneratePDF} className="gap-2">
-          <Download className="h-4 w-4" />
-          Gerar PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowPdfSettings(!showPdfSettings)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Configurar PDF
+          </Button>
+          <Button 
+            onClick={handleGeneratePDF} 
+            className="gap-2"
+            disabled={selectedColumns.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            Gerar PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filtros Aplicados */}
@@ -180,6 +237,91 @@ export default function Report() {
                   Status: {filters.status}
                 </Badge>
               )}
+            </div>
+          </CardContent>
+        </Card>
+        )}
+
+      {/* Configurações do PDF */}
+      {showPdfSettings && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configurações do PDF
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Seleção de Colunas */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <Label className="text-sm font-medium">Colunas para incluir no PDF</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAllColumns}
+                  >
+                    Selecionar Todas
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeselectAllColumns}
+                  >
+                    Limpar Seleção
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 border rounded-lg bg-gray-50 dark:bg-gray-900/20">
+                {reportData?.filteredData.length > 0 && Object.keys(reportData.filteredData[0]).map((column) => (
+                  <div key={column} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`col-${column}`}
+                      checked={selectedColumns.includes(column)}
+                      onCheckedChange={(checked) => handleColumnToggle(column, !!checked)}
+                    />
+                    <Label
+                      htmlFor={`col-${column}`}
+                      className="text-sm cursor-pointer truncate"
+                      title={column}
+                    >
+                      {column}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              
+              <p className="text-xs text-muted-foreground mt-2">
+                {selectedColumns.length} de {reportData?.filteredData.length > 0 ? Object.keys(reportData.filteredData[0]).length : 0} colunas selecionadas
+              </p>
+            </div>
+
+            {/* Orientação do PDF */}
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Orientação do PDF</Label>
+              <RadioGroup
+                value={pdfOrientation}
+                onValueChange={(value) => setPdfOrientation(value as 'portrait' | 'landscape')}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="portrait" id="portrait" />
+                  <Label htmlFor="portrait" className="cursor-pointer">
+                    Retrato (Vertical)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="landscape" id="landscape" />
+                  <Label htmlFor="landscape" className="cursor-pointer">
+                    Paisagem (Horizontal)
+                  </Label>
+                </div>
+              </RadioGroup>
+              <p className="text-xs text-muted-foreground mt-2">
+                Paisagem é recomendada para tabelas com muitas colunas
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -295,9 +437,14 @@ export default function Report() {
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-50">
-                  {filteredData.length > 0 && Object.keys(filteredData[0]).map((column) => (
+                  {filteredData.length > 0 && Object.keys(filteredData[0])
+                    .filter(column => selectedColumns.includes(column))
+                    .map((column) => (
                     <th key={column} className="border border-gray-300 p-2 text-left font-medium">
                       {column}
+                      {!selectedColumns.includes(column) && (
+                        <span className="text-xs text-muted-foreground ml-1">(não incluída no PDF)</span>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -305,7 +452,9 @@ export default function Report() {
               <tbody>
                 {filteredData.slice(0, 10).map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    {Object.values(row).map((value, cellIndex) => (
+                    {Object.entries(row)
+                      .filter(([column]) => selectedColumns.includes(column))
+                      .map(([column, value], cellIndex) => (
                       <td key={cellIndex} className="border border-gray-300 p-2">
                         {String(value || '')}
                       </td>

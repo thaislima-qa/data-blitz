@@ -8,11 +8,16 @@ export const generatePDF = async (
   consolidado?: {
     totalRecebidoPorForma: Record<string, number>;
     totalEmAberto: number;
-  }
+  },
+  orientation: 'portrait' | 'landscape' = 'landscape'
 ) => {
   if (!data.length) return;
 
-  const doc = new jsPDF();
+  const doc = new jsPDF({
+    orientation: orientation,
+    unit: 'mm',
+    format: 'a4'
+  });
   let yPosition = 20;
 
   // Adicionar logo se fornecida

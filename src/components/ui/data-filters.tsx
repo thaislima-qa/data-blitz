@@ -12,6 +12,7 @@ export interface FilterState {
   dataVencimento?: DateRange;
   dataRecebimento?: DateRange;
   metodoPagamento?: string;
+  sede?: string;
 }
 
 interface DataFiltersProps {
@@ -46,6 +47,12 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       col.toLowerCase().includes('payment') ||
       col.toLowerCase().includes('type')
     );
+    
+    const consultorColumn = columns.find(col => 
+      col.toLowerCase().includes('consultor') || 
+      col.toLowerCase().includes('advisor') ||
+      col.toLowerCase().includes('salesperson')
+    );
 
     // Get unique payment methods
     const paymentMethods = React.useMemo(() => {
@@ -59,7 +66,7 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       return Array.from(new Set(methods)).sort();
     }, [data, metodoPagamentoColumn]);
 
-    const hasFilters = vencimentoColumn || recebimentoColumn || metodoPagamentoColumn;
+    const hasFilters = vencimentoColumn || recebimentoColumn || metodoPagamentoColumn || consultorColumn;
     
     if (!hasFilters) {
       return null;
@@ -92,6 +99,13 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       });
     };
 
+    const handleSedeChange = (sede: string) => {
+      onFiltersChange({
+        ...filters,
+        sede: sede === "all" ? undefined : sede,
+      });
+    };
+
     return (
       <Card ref={ref} className={className}>
         <CardHeader className="pb-4">
@@ -120,7 +134,7 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Data de Vencimento Filter */}
             {vencimentoColumn && (
               <div className="space-y-2">
@@ -185,6 +199,32 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                 </p>
               </div>
             )}
+
+            {/* Sede Filter */}
+            {consultorColumn && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Sede
+                </Label>
+                <Select
+                  value={filters.sede || "all"}
+                  onValueChange={handleSedeChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as sedes" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50 bg-popover">
+                    <SelectItem value="all">Todas as sedes</SelectItem>
+                    <SelectItem value="Maraponga">Maraponga</SelectItem>
+                    <SelectItem value="Fátima">Fátima</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Baseado na coluna: {consultorColumn}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Active Filters Summary */}
@@ -205,6 +245,11 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                 {filters.metodoPagamento && (
                   <Badge variant="outline" className="text-xs">
                     Método: {filters.metodoPagamento}
+                  </Badge>
+                )}
+                {filters.sede && (
+                  <Badge variant="outline" className="text-xs">
+                    Sede: {filters.sede}
                   </Badge>
                 )}
               </div>

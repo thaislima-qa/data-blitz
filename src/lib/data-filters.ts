@@ -32,6 +32,12 @@ export const applyFilters = (
     col.toLowerCase().includes('type')
   );
 
+  const consultorColumn = columns.find(col => 
+    col.toLowerCase().includes('consultor') || 
+    col.toLowerCase().includes('advisor') ||
+    col.toLowerCase().includes('salesperson')
+  );
+
   // Apply Data de Vencimento filter
   if (filters.dataVencimento && vencimentoColumn) {
     const { from, to } = filters.dataVencimento;
@@ -71,6 +77,24 @@ export const applyFilters = (
       if (!methodValue) return false;
       
       return String(methodValue).trim() === filters.metodoPagamento;
+    });
+  }
+
+  // Apply Sede filter
+  if (filters.sede && consultorColumn) {
+    filteredData = filteredData.filter(row => {
+      const consultorValue = row[consultorColumn];
+      if (!consultorValue) return false;
+      
+      const consultor = String(consultorValue).trim();
+      
+      if (filters.sede === 'Maraponga') {
+        return consultor === 'Thais';
+      } else if (filters.sede === 'Fátima') {
+        return consultor === 'Taiana';
+      }
+      
+      return false;
     });
   }
 
@@ -135,6 +159,9 @@ export const getFilterSummary = (
   }
   if (filters.metodoPagamento) {
     activeFilters.push('Método de Pagamento');
+  }
+  if (filters.sede) {
+    activeFilters.push('Sede');
   }
 
   return {

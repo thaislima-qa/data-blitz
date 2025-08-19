@@ -38,6 +38,15 @@ export const applyFilters = (
     col.toLowerCase().includes('salesperson')
   );
 
+  const descricaoColumn = columns.find(col => 
+    col.toLowerCase().includes('descrição') || 
+    col.toLowerCase().includes('descricao') ||
+    col.toLowerCase().includes('description') ||
+    col.toLowerCase().includes('item') ||
+    col.toLowerCase().includes('produto') ||
+    col.toLowerCase().includes('product')
+  );
+
   // Apply Data de Vencimento filter
   if (filters.dataVencimento && vencimentoColumn) {
     const { from, to } = filters.dataVencimento;
@@ -92,6 +101,24 @@ export const applyFilters = (
         return consultor === 'Thais Lima';
       } else if (filters.sede === 'Fátima') {
         return consultor === 'Taiana Lima';
+      }
+      
+      return false;
+    });
+  }
+
+  // Apply Tipo filter
+  if (filters.tipo && descricaoColumn) {
+    filteredData = filteredData.filter(row => {
+      const descricaoValue = row[descricaoColumn];
+      if (!descricaoValue) return false;
+      
+      const descricao = String(descricaoValue).toLowerCase();
+      
+      if (filters.tipo === 'Contrato/Serviço') {
+        return descricao.includes('mensal');
+      } else if (filters.tipo === 'Produto') {
+        return descricao.includes('camisa') || descricao.includes('regata');
       }
       
       return false;
@@ -162,6 +189,9 @@ export const getFilterSummary = (
   }
   if (filters.sede) {
     activeFilters.push('Sede');
+  }
+  if (filters.tipo) {
+    activeFilters.push('Tipo');
   }
 
   return {

@@ -13,6 +13,7 @@ export interface FilterState {
   dataRecebimento?: DateRange;
   metodoPagamento?: string;
   sede?: string;
+  tipo?: string;
 }
 
 interface DataFiltersProps {
@@ -54,6 +55,15 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       col.toLowerCase().includes('salesperson')
     );
 
+    const descricaoColumn = columns.find(col => 
+      col.toLowerCase().includes('descrição') || 
+      col.toLowerCase().includes('descricao') ||
+      col.toLowerCase().includes('description') ||
+      col.toLowerCase().includes('item') ||
+      col.toLowerCase().includes('produto') ||
+      col.toLowerCase().includes('product')
+    );
+
     // Get unique payment methods
     const paymentMethods = React.useMemo(() => {
       if (!metodoPagamentoColumn) return [];
@@ -66,7 +76,7 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       return Array.from(new Set(methods)).sort();
     }, [data, metodoPagamentoColumn]);
 
-    const hasFilters = vencimentoColumn || recebimentoColumn || metodoPagamentoColumn || consultorColumn;
+    const hasFilters = vencimentoColumn || recebimentoColumn || metodoPagamentoColumn || consultorColumn || descricaoColumn;
     
     if (!hasFilters) {
       return null;
@@ -106,6 +116,13 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       });
     };
 
+    const handleTipoChange = (tipo: string) => {
+      onFiltersChange({
+        ...filters,
+        tipo: tipo === "all" ? undefined : tipo,
+      });
+    };
+
     return (
       <Card ref={ref} className={className}>
         <CardHeader className="pb-4">
@@ -134,7 +151,7 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Data de Vencimento Filter */}
             {vencimentoColumn && (
               <div className="space-y-2">
@@ -225,6 +242,32 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                 </p>
               </div>
             )}
+
+            {/* Tipo Filter */}
+            {descricaoColumn && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Tipo
+                </Label>
+                <Select
+                  value={filters.tipo || "all"}
+                  onValueChange={handleTipoChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os tipos" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50 bg-popover">
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="Contrato/Serviço">Contrato/Serviço</SelectItem>
+                    <SelectItem value="Produto">Produto</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Baseado na coluna: {descricaoColumn}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Active Filters Summary */}
@@ -250,6 +293,11 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                 {filters.sede && (
                   <Badge variant="outline" className="text-xs">
                     Sede: {filters.sede}
+                  </Badge>
+                )}
+                {filters.tipo && (
+                  <Badge variant="outline" className="text-xs">
+                    Tipo: {filters.tipo}
                   </Badge>
                 )}
               </div>

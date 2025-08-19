@@ -89,9 +89,9 @@ export const applyFilters = (
       const consultor = String(consultorValue).trim();
       
       if (filters.sede === 'Maraponga') {
-        return consultor === 'Thais';
+        return consultor === 'Thais Lima';
       } else if (filters.sede === 'Fátima') {
-        return consultor === 'Taiana';
+        return consultor === 'Taiana Lima';
       }
       
       return false;

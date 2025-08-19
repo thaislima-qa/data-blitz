@@ -1,21 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DataTable } from "@/components/ui/data-table";
+import { DataFilters, FilterState } from "@/components/ui/data-filters";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { processCSVFile, validateCSVData, getDataSummary } from "@/lib/csv-processor";
 import { generatePDFReport, downloadPDF } from "@/lib/pdf-generator";
+import { applyFilters, getFilterSummary } from "@/lib/data-filters";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, BarChart3, Upload, AlertCircle } from "lucide-react";
+import { FileText, Download, BarChart3, Upload, AlertCircle, Filter, TrendingDown, FilterX } from "lucide-react";
 
 const Index = () => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, any>[]>([]);
+  const [filters, setFilters] = useState<FilterState>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const { toast } = useToast();
+
+  // Apply filters to data
+  const filteredData = useMemo(() => {
+    return applyFilters(csvData, filters);
+  }, [csvData, filters]);
+
+  // Get filter summary
+  const filterSummary = useMemo(() => {
+    return getFilterSummary(csvData, filteredData, filters);
+  }, [csvData, filteredData, filters]);
 
   const handleFileSelect = async (file: File) => {
     setIsProcessing(true);
@@ -62,19 +76,22 @@ const Index = () => {
   const handleClearFile = () => {
     setCsvFile(null);
     setCsvData([]);
+    setFilters({});
   };
 
   const handleGeneratePDF = async () => {
-    if (csvData.length === 0) return;
+    if (filteredData.length === 0) return;
 
     setIsGeneratingPDF(true);
     
     try {
-      const summary = getDataSummary(csvData);
+      const summary = getDataSummary(filteredData);
       
       const sections = [{
-        title: "Dados Importados do CSV",
-        data: csvData,
+        title: filterSummary.filtersApplied > 0 
+          ? `Dados Filtrados - ${filterSummary.activeFilters.join(', ')}`
+          : "Dados Importados do CSV",
+        data: filteredData,
         summary: {
           totalRows: summary.totalRows,
           columnStats: summary.columns.reduce((acc, col) => {
@@ -89,19 +106,20 @@ const Index = () => {
       }];
 
       const doc = generatePDFReport(sections, {
-        title: `Relatório - ${csvFile?.name || 'Dados CSV'}`,
+        title: `Relatório - ${csvFile?.name || 'Dados CSV'}${filterSummary.filtersApplied > 0 ? ' (Filtrado)' : ''}`,
         orientation: 'landscape',
         includeHeader: true,
         includeFooter: true,
       });
 
-      const filename = `relatorio_${csvFile?.name?.replace('.csv', '') || 'dados'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const filterSuffix = filterSummary.filtersApplied > 0 ? '_filtrado' : '';
+      const filename = `relatorio_${csvFile?.name?.replace('.csv', '') || 'dados'}${filterSuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
       
       downloadPDF(doc, filename);
       
       toast({
         title: "PDF gerado com sucesso!",
-        description: `Relatório salvo como ${filename}`,
+        description: `Relatório ${filterSummary.filtersApplied > 0 ? 'filtrado ' : ''}salvo como ${filename}`,
       });
     } catch (error) {
       toast({
@@ -115,7 +133,7 @@ const Index = () => {
     }
   };
 
-  const dataSummary = csvData.length > 0 ? getDataSummary(csvData) : null;
+  const dataSummary = filteredData.length > 0 ? getDataSummary(filteredData) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
@@ -159,20 +177,48 @@ const Index = () => {
           </CardContent>
         </Card>
 
+        {/* Filters Section */}
+        {csvData.length > 0 && (
+          <DataFilters
+            data={csvData}
+            filters={filters}
+            onFiltersChange={setFilters}
+            className="mb-8 shadow-lg border-0 bg-card/50 backdrop-blur-sm"
+          />
+        )}
+
+        {/* Filter Summary */}
+        {filterSummary.filtersApplied > 0 && (
+          <Alert className="mb-8 bg-primary/5 border-primary/20">
+            <Filter className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Filtros aplicados:</strong> {filterSummary.activeFilters.join(', ')} • 
+              Mostrando {filterSummary.filtered} de {filterSummary.total} registros
+              {filterSummary.filtered !== filterSummary.total && (
+                <span className="ml-2 text-primary font-medium">
+                  ({((filterSummary.filtered / filterSummary.total) * 100).toFixed(1)}% dos dados)
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Data Summary */}
         {dataSummary && (
           <Card className="mb-8 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
-                Resumo dos Dados
+                Resumo dos Dados {filterSummary.filtersApplied > 0 && "(Filtrados)"}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-4 rounded-lg bg-primary/5">
                   <div className="text-2xl font-bold text-primary">{dataSummary.totalRows}</div>
-                  <div className="text-sm text-muted-foreground">Total de Linhas</div>
+                  <div className="text-sm text-muted-foreground">
+                    {filterSummary.filtersApplied > 0 ? 'Linhas Filtradas' : 'Total de Linhas'}
+                  </div>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-secondary/50">
                   <div className="text-2xl font-bold text-secondary-foreground">{dataSummary.totalColumns}</div>
@@ -184,6 +230,15 @@ const Index = () => {
                   </div>
                   <div className="text-sm text-muted-foreground">Valores Únicos</div>
                 </div>
+                {filterSummary.filtersApplied > 0 && (
+                  <div className="text-center p-4 rounded-lg bg-orange-100 dark:bg-orange-900/20">
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 flex items-center justify-center gap-1">
+                      <TrendingDown className="h-5 w-5" />
+                      {filterSummary.total - filterSummary.filtered}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Registros Filtrados</div>
+                  </div>
+                )}
               </div>
               
               <Separator className="my-4" />
@@ -203,14 +258,14 @@ const Index = () => {
         )}
 
         {/* Data Preview */}
-        {csvData.length > 0 && (
+        {filteredData.length > 0 && (
           <div className="mb-8">
-            <DataTable data={csvData} />
+            <DataTable data={filteredData} />
           </div>
         )}
 
         {/* Generate PDF */}
-        {csvData.length > 0 && (
+        {filteredData.length > 0 && (
           <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -231,7 +286,7 @@ const Index = () => {
                 </div>
                 <Button
                   onClick={handleGeneratePDF}
-                  disabled={isGeneratingPDF}
+                  disabled={isGeneratingPDF || filteredData.length === 0}
                   variant="gradient"
                   size="lg"
                   className="w-full sm:w-auto"
@@ -254,7 +309,7 @@ const Index = () => {
         )}
 
         {/* Empty State */}
-        {csvData.length === 0 && !csvFile && (
+        {filteredData.length === 0 && csvData.length === 0 && !csvFile && (
           <Card className="text-center py-12 shadow-lg border-0 bg-card/30 backdrop-blur-sm">
             <CardContent>
               <div className="flex flex-col items-center gap-4">
@@ -266,6 +321,33 @@ const Index = () => {
                   <p className="text-muted-foreground max-w-md">
                     Faça upload de um arquivo CSV para começar a visualizar os dados e gerar relatórios profissionais.
                   </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No Results After Filter */}
+        {csvData.length > 0 && filteredData.length === 0 && filterSummary.filtersApplied > 0 && (
+          <Card className="text-center py-12 shadow-lg border-0 bg-orange-50 dark:bg-orange-900/10">
+            <CardContent>
+              <div className="flex flex-col items-center gap-4">
+                <div className="p-4 rounded-full bg-orange-100 dark:bg-orange-900/20">
+                  <Filter className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Nenhum resultado encontrado</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Os filtros aplicados não retornaram nenhum resultado. Tente ajustar os critérios de filtro ou limpe os filtros para ver todos os dados.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setFilters({})}
+                    className="mt-4"
+                  >
+                    <FilterX className="h-4 w-4 mr-2" />
+                    Limpar Filtros
+                  </Button>
                 </div>
               </div>
             </CardContent>

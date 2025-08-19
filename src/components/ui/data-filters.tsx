@@ -14,6 +14,7 @@ export interface FilterState {
   metodoPagamento?: string;
   sede?: string;
   tipo?: string;
+  status?: string;
 }
 
 interface DataFiltersProps {
@@ -123,6 +124,13 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
       });
     };
 
+    const handleStatusChange = (status: string) => {
+      onFiltersChange({
+        ...filters,
+        status: status === "all" ? undefined : status,
+      });
+    };
+
     return (
       <Card ref={ref} className={className}>
         <CardHeader className="pb-4">
@@ -151,7 +159,7 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Data de Vencimento Filter */}
             {vencimentoColumn && (
               <div className="space-y-2">
@@ -268,6 +276,32 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                 </p>
               </div>
             )}
+
+            {/* Status Filter */}
+            {recebimentoColumn && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Status
+                </Label>
+                <Select
+                  value={filters.status || "all"}
+                  onValueChange={handleStatusChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-50 bg-popover">
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="Recebido">Recebido</SelectItem>
+                    <SelectItem value="Em Aberto">Em Aberto</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Baseado na coluna: {recebimentoColumn}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Active Filters Summary */}
@@ -298,6 +332,11 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                 {filters.tipo && (
                   <Badge variant="outline" className="text-xs">
                     Tipo: {filters.tipo}
+                  </Badge>
+                )}
+                {filters.status && (
+                  <Badge variant="outline" className="text-xs">
+                    Status: {filters.status}
                   </Badge>
                 )}
               </div>

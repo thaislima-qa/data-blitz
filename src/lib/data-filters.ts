@@ -125,6 +125,21 @@ export const applyFilters = (
     });
   }
 
+  // Apply Status filter
+  if (filters.status && recebimentoColumn) {
+    filteredData = filteredData.filter(row => {
+      const recebimentoValue = row[recebimentoColumn];
+      
+      if (filters.status === 'Recebido') {
+        return recebimentoValue && String(recebimentoValue).trim() !== '';
+      } else if (filters.status === 'Em Aberto') {
+        return !recebimentoValue || String(recebimentoValue).trim() === '';
+      }
+      
+      return false;
+    });
+  }
+
   return filteredData;
 };
 
@@ -192,6 +207,9 @@ export const getFilterSummary = (
   }
   if (filters.tipo) {
     activeFilters.push('Tipo');
+  }
+  if (filters.status) {
+    activeFilters.push('Status');
   }
 
   return {

@@ -14,6 +14,44 @@ import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
 import logoTaianaLima from "/logo-taiana-lima.png";
 
+// Função para formatar valores monetários
+const formatCurrency = (value: any): string => {
+  if (!value) return 'R$ 0,00';
+  
+  const numValue = typeof value === 'string' 
+    ? parseFloat(value.replace(/[^\d,.-]/g, '').replace(',', '.')) 
+    : parseFloat(String(value));
+    
+  if (isNaN(numValue)) return String(value);
+  
+  return numValue.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2
+  });
+};
+
+// Função para detectar se uma coluna contém valores monetários
+const isMonetaryColumn = (columnName: string): boolean => {
+  const monetaryKeywords = [
+    'valor', 'price', 'preco', 'preço', 'amount', 'total', 'subtotal',
+    'desconto', 'discount', 'taxa', 'fee', 'custo', 'cost', 'receita',
+    'revenue', 'faturamento', 'billing', 'pagamento', 'payment'
+  ];
+  
+  return monetaryKeywords.some(keyword => 
+    columnName.toLowerCase().includes(keyword)
+  );
+};
+
+// Função para formatar valor de célula
+const formatCellValue = (value: any, columnName: string): string => {
+  if (isMonetaryColumn(columnName)) {
+    return formatCurrency(value);
+  }
+  return String(value || '');
+};
+
 interface ReportData {
   filteredData: Record<string, any>[];
   originalData: Record<string, any>[];
@@ -61,7 +99,9 @@ export default function Report() {
     const valorColumn = columns.find(col => 
       col.toLowerCase().includes('valor') || 
       col.toLowerCase().includes('amount') ||
-      col.toLowerCase().includes('total')
+      col.toLowerCase().includes('total') ||
+      col.toLowerCase().includes('preco') ||
+      col.toLowerCase().includes('preço')
     );
     
     const recebimentoColumn = columns.find(col => 
@@ -83,7 +123,10 @@ export default function Report() {
     let totalEmAberto = 0;
 
     data.forEach(row => {
-      const valor = parseFloat(String(row[valorColumn || ''] || '0').replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+      // Melhor parsing de valores monetários
+      const valorStr = String(row[valorColumn || ''] || '0');
+      const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+      
       const recebimento = row[recebimentoColumn || ''];
       const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
       
@@ -345,7 +388,7 @@ export default function Report() {
                   <div key={forma} className="flex justify-between items-center">
                     <span className="font-medium">{forma}</span>
                     <span className="text-lg font-bold text-green-600">
-                      R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(valor)}
                     </span>
                   </div>
                 ))
@@ -361,9 +404,7 @@ export default function Report() {
                 <div className="flex justify-between items-center font-bold">
                   <span>Total Recebido:</span>
                   <span className="text-xl text-green-700">
-                    R$ {Object.values(consolidado.totalRecebidoPorForma)
-                      .reduce((acc, val) => acc + val, 0)
-                      .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0))}
                   </span>
                 </div>
               </>
@@ -382,7 +423,7 @@ export default function Report() {
           <CardContent>
             <div className="text-center py-8">
               <div className="text-3xl font-bold text-red-600 mb-2">
-                R$ {consolidado.totalEmAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(consolidado.totalEmAberto)}
               </div>
               <p className="text-muted-foreground">
                 Total de valores ainda não recebidos
@@ -401,25 +442,21 @@ export default function Report() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div className="p-4 border rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                R$ {Object.values(consolidado.totalRecebidoPorForma)
-                  .reduce((acc, val) => acc + val, 0)
-                  .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0))}
               </div>
               <p className="text-sm text-muted-foreground">Total Recebido</p>
             </div>
             
             <div className="p-4 border rounded-lg">
               <div className="text-2xl font-bold text-red-600">
-                R$ {consolidado.totalEmAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(consolidado.totalEmAberto)}
               </div>
               <p className="text-sm text-muted-foreground">Total em Aberto</p>
             </div>
             
             <div className="p-4 border rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
-                R$ {(Object.values(consolidado.totalRecebidoPorForma)
-                  .reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto)
-                  .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto)}
               </div>
               <p className="text-sm text-muted-foreground">Total Geral</p>
             </div>
@@ -456,7 +493,7 @@ export default function Report() {
                       .filter(([column]) => selectedColumns.includes(column))
                       .map(([column, value], cellIndex) => (
                       <td key={cellIndex} className="border border-gray-300 p-2">
-                        {String(value || '')}
+                        {formatCellValue(value, column)}
                       </td>
                     ))}
                   </tr>

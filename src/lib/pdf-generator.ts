@@ -67,26 +67,26 @@ export const generatePDF = async (
       Object.entries(consolidado.totalRecebidoPorForma)
         .sort(([,a], [,b]) => b - a)
         .forEach(([forma, valor]) => {
-          doc.text(`${forma}: R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 25, yPosition);
+          doc.text(`${forma}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
           yPosition += 8;
         });
       
       // Total Recebido
       const totalRecebido = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Total Recebido: R$ ${totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 25, yPosition);
+      doc.text(`Total Recebido: ${formatCurrencyForPDF(totalRecebido)}`, 25, yPosition);
       yPosition += 15;
     }
 
     // Total em Aberto
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total em Aberto: R$ ${consolidado.totalEmAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 20, yPosition);
+    doc.text(`Total em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
     yPosition += 10;
 
     // Total Geral
     const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto;
-    doc.text(`Total Geral: R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 20, yPosition);
+    doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
     yPosition += 20;
 
     // Linha separadora
@@ -100,7 +100,7 @@ export const generatePDF = async (
 
   // Preparar dados da tabela
   const columns = Object.keys(data[0]);
-  const rows = data.map(row => columns.map(col => String(row[col] || '')));
+  const rows = data.map(row => columns.map(col => formatCellForPDF(row[col], col)));
 
   // Adicionar tabela
   autoTable(doc, {
@@ -294,7 +294,7 @@ const addSection = (
   if (section.data.length > 0) {
     const columns = section.columns || Object.keys(section.data[0]);
     const tableData = section.data.slice(0, options.maxRowsPerPage).map(row =>
-      columns.map(col => formatCellForPDF(row[col]))
+      columns.map(col => formatCellForPDF(row[col], col))
     );
 
     // Generate table
@@ -369,11 +369,48 @@ const addDocumentFooter = (doc: jsPDF, options: Required<PDFOptions>): void => {
   }
 };
 
-const formatCellForPDF = (value: any): string => {
+// Função para formatar valores monetários no PDF
+const formatCurrencyForPDF = (value: any): string => {
+  if (!value) return 'R$ 0,00';
+  
+  const numValue = typeof value === 'string' 
+    ? parseFloat(value.replace(/[^\d,.-]/g, '').replace(',', '.')) 
+    : parseFloat(String(value));
+    
+  if (isNaN(numValue)) return String(value);
+  
+  return numValue.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2
+  });
+};
+
+// Função para detectar se uma coluna contém valores monetários
+const isMonetaryColumnPDF = (columnName: string): boolean => {
+  const monetaryKeywords = [
+    'valor', 'price', 'preco', 'preço', 'amount', 'total', 'subtotal',
+    'desconto', 'discount', 'taxa', 'fee', 'custo', 'cost', 'receita',
+    'revenue', 'faturamento', 'billing', 'pagamento', 'payment'
+  ];
+  
+  return monetaryKeywords.some(keyword => 
+    columnName.toLowerCase().includes(keyword)
+  );
+};
+
+const formatCellForPDF = (value: any, columnName: string): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-  if (typeof value === 'number') return value.toLocaleString('pt-BR');
   if (value instanceof Date) return value.toLocaleDateString('pt-BR');
+  
+  // Formatar valores monetários
+  if (isMonetaryColumnPDF(columnName)) {
+    return formatCurrencyForPDF(value);
+  }
+  
+  // Formatar números não monetários
+  if (typeof value === 'number') return value.toLocaleString('pt-BR');
   
   const str = String(value);
   return str.length > 50 ? str.substring(0, 47) + '...' : str;

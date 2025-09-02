@@ -13,7 +13,6 @@ import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
 import logoTaianaLima from "/logo-taiana-lima.png";
-import { getActivePlansInPeriod, SubscriptionPlan } from "@/lib/subscription-plans";
 
 // Função para formatar valores monetários
 const formatCurrency = (value: any): string => {
@@ -70,7 +69,6 @@ export default function Report() {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [pdfOrientation, setPdfOrientation] = useState<'portrait' | 'landscape'>('landscape');
   const [showPdfSettings, setShowPdfSettings] = useState(false);
-  const [activePlans, setActivePlans] = useState<SubscriptionPlan[]>([]);
 
   useEffect(() => {
     const data = location.state as ReportData;
@@ -90,37 +88,7 @@ export default function Report() {
     // Calcular consolidado
     const { filteredData } = data;
     calculateConsolidado(filteredData);
-    
-    // Buscar planos ativos no período
-    loadActivePlans(data.filters);
   }, [location.state, navigate]);
-
-  const loadActivePlans = async (filters: FilterState) => {
-    // Determinar período baseado nos filtros de data
-    let startDate = new Date();
-    let endDate = new Date();
-    
-    // Se existem filtros de data, usar eles
-    const dateFilters = Object.entries(filters).filter(([key, filter]) => 
-      filter.type === 'date' && (filter.startDate || filter.endDate)
-    );
-    
-    if (dateFilters.length > 0) {
-      const [, dateFilter] = dateFilters[0];
-      if (dateFilter.startDate) startDate = new Date(dateFilter.startDate);
-      if (dateFilter.endDate) endDate = new Date(dateFilter.endDate);
-    } else {
-      // Se não há filtros de data, usar período padrão (último mês)
-      startDate.setMonth(startDate.getMonth() - 1);
-    }
-    
-    try {
-      const plans = await getActivePlansInPeriod(startDate, endDate);
-      setActivePlans(plans);
-    } catch (error) {
-      console.error('Erro ao carregar planos ativos:', error);
-    }
-  };
 
   const calculateConsolidado = (data: Record<string, any>[]) => {
     if (!data.length) return;
@@ -198,8 +166,7 @@ export default function Report() {
         `Relatório Consolidado - ${new Date().toLocaleDateString('pt-BR')}`,
         logoTaianaLima,
         consolidado,
-        pdfOrientation,
-        activePlans // Incluir planos ativos
+        pdfOrientation
       );
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
@@ -497,86 +464,6 @@ export default function Report() {
         </CardContent>
       </Card>
 
-      {/* Planos de Assinatura Ativos */}
-      {activePlans.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Planos de Assinatura Ativos no Período</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {activePlans.length}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Total de Planos</p>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
-                    {activePlans.filter(p => p.tipo_plano === 'trimestral').length}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Trimestrais</p>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {activePlans.filter(p => p.tipo_plano === 'semestral').length}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Semestrais</p>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-indigo-600">
-                    {formatCurrency(activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0))}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Valor Total</p>
-                </div>
-              </div>
-
-              {/* Tabela de Planos */}
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border border-gray-300 p-2 text-left font-medium">Tipo</th>
-                      <th className="border border-gray-300 p-2 text-left font-medium">Cliente</th>
-                      <th className="border border-gray-300 p-2 text-left font-medium">Vencimento</th>
-                      <th className="border border-gray-300 p-2 text-left font-medium">Período</th>
-                      <th className="border border-gray-300 p-2 text-left font-medium">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activePlans.map((plan, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 p-2">
-                          <Badge variant={plan.tipo_plano === 'trimestral' ? 'default' : 'secondary'}>
-                            {plan.tipo_plano}
-                          </Badge>
-                        </td>
-                        <td className="border border-gray-300 p-2">
-                          {plan.nome_cliente || 'Não informado'}
-                        </td>
-                        <td className="border border-gray-300 p-2">
-                          {plan.data_vencimento.toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="border border-gray-300 p-2">
-                          {plan.data_inicio} a {plan.data_fim}
-                        </td>
-                        <td className="border border-gray-300 p-2">
-                          {formatCurrency(plan.valor)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Preview dos Dados */}
       <Card>
         <CardHeader>
@@ -600,7 +487,7 @@ export default function Report() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((row, index) => (
+                {filteredData.slice(0, 10).map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     {Object.entries(row)
                       .filter(([column]) => selectedColumns.includes(column))
@@ -613,6 +500,11 @@ export default function Report() {
                 ))}
               </tbody>
             </table>
+            {filteredData.length > 10 && (
+              <p className="text-sm text-muted-foreground mt-2 text-center">
+                Mostrando 10 de {filteredData.length} registros. Veja o relatório completo no PDF.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

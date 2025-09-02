@@ -600,7 +600,7 @@ export default function Report() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.slice(0, 10).map((row, index) => (
+                {filteredData.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     {Object.entries(row)
                       .filter(([column]) => selectedColumns.includes(column))
@@ -613,11 +613,6 @@ export default function Report() {
                 ))}
               </tbody>
             </table>
-            {filteredData.length > 10 && (
-              <p className="text-sm text-muted-foreground mt-2 text-center">
-                Mostrando 10 de {filteredData.length} registros. Veja o relatório completo no PDF.
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>

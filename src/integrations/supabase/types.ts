@@ -56,6 +56,42 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          data_vencimento: string
+          id: string
+          nome_cliente: string | null
+          tipo_plano: string
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          data_vencimento: string
+          id?: string
+          nome_cliente?: string | null
+          tipo_plano: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          data_vencimento?: string
+          id?: string
+          nome_cliente?: string | null
+          tipo_plano?: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

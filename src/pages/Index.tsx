@@ -8,6 +8,7 @@ import { Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { DataFilters, FilterState } from "@/components/ui/data-filters";
 import { applyFilters, getFilterSummary } from "@/lib/data-filters";
+import { identifySubscriptionPlans, saveSubscriptionPlans } from "@/lib/subscription-plans";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -28,7 +29,19 @@ export default function Index() {
     try {
       const result = await processCSVFile(file);
       setCsvData(result.data);
-      toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados.`);
+      
+      // Identifica e salva planos de assinatura
+      const plans = identifySubscriptionPlans(result.data);
+      if (plans.length > 0) {
+        const saved = await saveSubscriptionPlans(plans);
+        if (saved) {
+          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados e ${plans.length} planos identificados.`);
+        } else {
+          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados. (Erro ao salvar planos)`);
+        }
+      } else {
+        toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados.`);
+      }
     } catch (error) {
       toast.error("Erro ao processar arquivo CSV");
       console.error(error);

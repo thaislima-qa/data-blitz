@@ -96,31 +96,44 @@ export default function Report() {
   }, [location.state, navigate]);
 
   const loadActivePlans = async (filters: FilterState) => {
-    // Determinar período baseado nos filtros de data
-    let startDate = new Date();
-    let endDate = new Date();
-    
-    // Se existem filtros de data, usar eles
-    const dateFilters = Object.entries(filters).filter(([key, filter]) => 
-      filter.type === 'date' && (filter.startDate || filter.endDate)
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+  
+    // Pega todos os filtros que possuem campo de data
+    const dateFilters = Object.values(filters).filter(
+      (f: any) => f?.from || f?.to
     );
-    
+  
     if (dateFilters.length > 0) {
-      const [, dateFilter] = dateFilters[0];
-      if (dateFilter.startDate) startDate = new Date(dateFilter.startDate);
-      if (dateFilter.endDate) endDate = new Date(dateFilter.endDate);
+      dateFilters.forEach((filter: any) => {
+        if (filter.from) {
+          const fromDate = filter.from instanceof Date ? filter.from : new Date(filter.from);
+          if (!startDate || fromDate < startDate) {
+            startDate = fromDate;
+          }
+        }
+        if (filter.to) {
+          const toDate = filter.to instanceof Date ? filter.to : new Date(filter.to);
+          if (!endDate || toDate > endDate) {
+            endDate = toDate;
+          }
+        }
+      });
     } else {
-      // Se não há filtros de data, usar período padrão (último mês)
+      // fallback: último mês
+      startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 1);
+      endDate = new Date();
     }
-    
+  
     try {
-      const plans = await getActivePlansInPeriod(startDate, endDate);
+      const plans = await getActivePlansInPeriod(startDate!, endDate!);
       setActivePlans(plans);
     } catch (error) {
-      console.error('Erro ao carregar planos ativos:', error);
+      console.error("Erro ao carregar planos ativos:", error);
     }
   };
+
 
   const calculateConsolidado = (data: Record<string, any>[]) => {
     if (!data.length) return;

@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { SubscriptionPlan } from './subscription-plans';
 
 export const generatePDF = async (
   data: Record<string, any>[], 
@@ -9,7 +10,8 @@ export const generatePDF = async (
     totalRecebidoPorForma: Record<string, number>;
     totalEmAberto: number;
   },
-  orientation: 'portrait' | 'landscape' = 'landscape'
+  orientation: 'portrait' | 'landscape' = 'landscape',
+  activePlans?: SubscriptionPlan[]
 ) => {
   if (!data.length) return;
 
@@ -88,6 +90,74 @@ export const generatePDF = async (
     const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto;
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
     yPosition += 20;
+
+    // Linha separadora
+    doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
+    yPosition += 15;
+
+    doc.setFontSize(14);
+    doc.text('DADOS DETALHADOS', 20, yPosition);
+    yPosition += 15;
+  }
+
+  // Adicionar planos de assinatura se fornecidos
+  if (activePlans && activePlans.length > 0) {
+    // Verificar se precisa de nova página
+    if (yPosition > doc.internal.pageSize.height - 100) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLANOS DE ASSINATURA ATIVOS NO PERÍODO', 20, yPosition);
+    yPosition += 15;
+
+    // Resumo dos planos
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    const totalPlanos = activePlans.length;
+    const trimestrais = activePlans.filter(p => p.tipo_plano === 'trimestral').length;
+    const semestrais = activePlans.filter(p => p.tipo_plano === 'semestral').length;
+    const valorTotal = activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0);
+
+    doc.text(`Total de Planos: ${totalPlanos}`, 20, yPosition);
+    yPosition += 8;
+    doc.text(`Trimestrais: ${trimestrais} | Semestrais: ${semestrais}`, 20, yPosition);
+    yPosition += 8;
+    doc.text(`Valor Total: ${formatCurrencyForPDF(valorTotal)}`, 20, yPosition);
+    yPosition += 15;
+
+    // Tabela de planos
+    const plansTableData = activePlans.map(plan => [
+      plan.tipo_plano.charAt(0).toUpperCase() + plan.tipo_plano.slice(1),
+      plan.nome_cliente || 'Não informado',
+      plan.data_vencimento.toLocaleDateString('pt-BR'),
+      `${plan.data_inicio} a ${plan.data_fim}`,
+      formatCurrencyForPDF(plan.valor)
+    ]);
+
+    autoTable(doc, {
+      head: [['Tipo', 'Cliente', 'Vencimento', 'Período', 'Valor']],
+      body: plansTableData,
+      startY: yPosition,
+      margin: { left: 20, right: 20 },
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [138, 43, 226], // Purple
+        textColor: 255,
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 255], // Light purple
+      },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 20;
 
     // Linha separadora
     doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);

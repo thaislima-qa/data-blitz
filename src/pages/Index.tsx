@@ -172,7 +172,7 @@ export default function Index() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredData.slice(0, 200).map((row, index) => (
+                    {filteredData.map((row, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         {Object.values(row).map((value, cellIndex) => (
                           <td key={cellIndex} className="border border-gray-300 p-2">
@@ -183,11 +183,6 @@ export default function Index() {
                     ))}
                   </tbody>
                 </table>
-                {filteredData.length > 200 && (
-                  <p className="text-sm text-muted-foreground mt-2 text-center">
-                    Mostrando 10 de {filteredData.length} registros. Veja todos no relatório final.
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>

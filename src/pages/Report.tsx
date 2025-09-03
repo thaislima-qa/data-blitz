@@ -13,7 +13,7 @@ import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
 import logoTaianaLima from "/logo-taiana-lima.png";
-import { getActivePlansInPeriod, SubscriptionPlan } from "@/lib/subscription-plans";
+import { getActivePlansInPeriod, SubscriptionPlan, identifySubscriptionPlans, saveSubscriptionPlans } from "@/lib/subscription-plans";
 
 // Função para formatar valores monetários
 const formatCurrency = (value: any): string => {
@@ -71,6 +71,7 @@ export default function Report() {
   const [pdfOrientation, setPdfOrientation] = useState<'portrait' | 'landscape'>('landscape');
   const [showPdfSettings, setShowPdfSettings] = useState(false);
   const [activePlans, setActivePlans] = useState<SubscriptionPlan[]>([]);
+  const [dataWithoutPlans, setDataWithoutPlans] = useState<Record<string, any>[]>([]);
 
   useEffect(() => {
     const data = location.state as ReportData;
@@ -81,58 +82,61 @@ export default function Report() {
     
     setReportData(data);
     
-    // Inicializar com todas as colunas selecionadas
-    if (data.filteredData.length > 0) {
-      const columns = Object.keys(data.filteredData[0]);
-      setSelectedColumns(columns);
-    }
-    
-    // Calcular consolidado
-    const { filteredData } = data;
-    calculateConsolidado(filteredData);
-    
-    // Buscar planos ativos no período
-    loadActivePlans(data.filters);
+    // Processar planos de assinatura e remover dos dados filtrados
+    processSubscriptionPlans(data.filteredData);
   }, [location.state, navigate]);
 
-  const loadActivePlans = async (filters: FilterState) => {
-    let startDate: Date | null = null;
-    let endDate: Date | null = null;
-  
-    // Pega todos os filtros que possuem campo de data
-    const dateFilters = Object.values(filters).filter(
-      (f: any) => f?.from || f?.to
-    );
-  
-    if (dateFilters.length > 0) {
-      dateFilters.forEach((filter: any) => {
-        if (filter.from) {
-          const fromDate = filter.from instanceof Date ? filter.from : new Date(filter.from);
-          if (!startDate || fromDate < startDate) {
-            startDate = fromDate;
-          }
-        }
-        if (filter.to) {
-          const toDate = filter.to instanceof Date ? filter.to : new Date(filter.to);
-          if (!endDate || toDate > endDate) {
-            endDate = toDate;
-          }
-        }
-      });
-    } else {
-      // fallback: último mês
-      startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1);
-      endDate = new Date();
-    }
-  
+  const processSubscriptionPlans = async (filteredData: Record<string, any>[]) => {
     try {
-      const plans = await getActivePlansInPeriod(startDate!, endDate!);
-      setActivePlans(plans);
+      // Identificar planos de assinatura
+      const identifiedPlans = identifySubscriptionPlans(filteredData);
+      
+      // Salvar os planos identificados no Supabase
+      if (identifiedPlans.length > 0) {
+        await saveSubscriptionPlans(identifiedPlans);
+      }
+      
+      // Criar um Set com as chaves únicas dos registros que são planos
+      const planKeys = new Set<string>();
+      identifiedPlans.forEach(plan => {
+        const key = `${plan.nome_cliente || 'sem_nome'}_${plan.tipo_plano}_${plan.data_vencimento.toISOString().split('T')[0]}`;
+        planKeys.add(key);
+      });
+      
+      // Filtrar dados removendo os que são planos de assinatura
+      const dataWithoutPlans = filteredData.filter(row => {
+        // Verifica se este registro é um plano de assinatura
+        const rowText = Object.entries(row)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(' ')
+          .toLowerCase();
+          
+        const isSubscriptionPlan = rowText.includes('trimestral') || rowText.includes('semestral');
+        return !isSubscriptionPlan;
+      });
+      
+      setDataWithoutPlans(dataWithoutPlans);
+      setActivePlans(identifiedPlans);
+      
+      // Inicializar colunas selecionadas com base nos dados sem planos
+      if (dataWithoutPlans.length > 0) {
+        const columns = Object.keys(dataWithoutPlans[0]);
+        setSelectedColumns(columns);
+      }
+      
+      // Calcular consolidado apenas com dados que não são planos
+      calculateConsolidado(dataWithoutPlans);
+      
     } catch (error) {
-      console.error("Erro ao carregar planos ativos:", error);
+      console.error('Erro ao processar planos de assinatura:', error);
+      toast.error('Erro ao processar planos de assinatura');
+      
+      // Em caso de erro, usar os dados originais
+      setDataWithoutPlans(filteredData);
+      calculateConsolidado(filteredData);
     }
   };
+
 
 
   const calculateConsolidado = (data: Record<string, any>[]) => {
@@ -197,8 +201,8 @@ export default function Report() {
     }
 
     try {
-      // Filtrar dados para incluir apenas as colunas selecionadas
-      const filteredForPDF = reportData.filteredData.map(row => {
+      // Filtrar dados para incluir apenas as colunas selecionadas (sem planos de assinatura)
+      const filteredForPDF = dataWithoutPlans.map(row => {
         const newRow: Record<string, any> = {};
         selectedColumns.forEach(col => {
           newRow[col] = row[col];
@@ -230,8 +234,8 @@ export default function Report() {
   };
 
   const handleSelectAllColumns = () => {
-    if (!reportData?.filteredData.length) return;
-    const allColumns = Object.keys(reportData.filteredData[0]);
+    if (!dataWithoutPlans.length) return;
+    const allColumns = Object.keys(dataWithoutPlans[0]);
     setSelectedColumns(allColumns);
   };
 
@@ -243,7 +247,7 @@ export default function Report() {
     return <div>Carregando...</div>;
   }
 
-  const { filteredData, filters } = reportData;
+  const { filters } = reportData;
   const activeFilters = Object.entries(filters).filter(([_, value]) => value).length;
 
   return (
@@ -262,7 +266,7 @@ export default function Report() {
           <div>
             <h1 className="text-2xl font-bold">Relatório Final</h1>
             <p className="text-muted-foreground">
-              {filteredData.length} registros encontrados
+              {dataWithoutPlans.length} registros filtrados • {activePlans.length} plano(s) de assinatura
               {activeFilters > 0 && ` • ${activeFilters} filtro${activeFilters > 1 ? 's' : ''} aplicado${activeFilters > 1 ? 's' : ''}`}
             </p>
           </div>
@@ -364,7 +368,7 @@ export default function Report() {
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 border rounded-lg bg-gray-50 dark:bg-gray-900/20">
-                {reportData?.filteredData.length > 0 && Object.keys(reportData.filteredData[0]).map((column) => (
+                {dataWithoutPlans.length > 0 && Object.keys(dataWithoutPlans[0]).map((column) => (
                   <div key={column} className="flex items-center space-x-2">
                     <Checkbox
                       id={`col-${column}`}
@@ -383,7 +387,7 @@ export default function Report() {
               </div>
               
               <p className="text-xs text-muted-foreground mt-2">
-                {selectedColumns.length} de {reportData?.filteredData.length > 0 ? Object.keys(reportData.filteredData[0]).length : 0} colunas selecionadas
+                {selectedColumns.length} de {dataWithoutPlans.length > 0 ? Object.keys(dataWithoutPlans[0]).length : 0} colunas selecionadas
               </p>
             </div>
 
@@ -593,14 +597,14 @@ export default function Report() {
       {/* Preview dos Dados */}
       <Card>
         <CardHeader>
-          <CardTitle>Dados Filtrados ({filteredData.length} registros)</CardTitle>
+          <CardTitle>Dados Filtrados ({dataWithoutPlans.length} registros)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-50">
-                  {filteredData.length > 0 && Object.keys(filteredData[0])
+                  {dataWithoutPlans.length > 0 && Object.keys(dataWithoutPlans[0])
                     .filter(column => selectedColumns.includes(column))
                     .map((column) => (
                     <th key={column} className="border border-gray-300 p-2 text-left font-medium">
@@ -613,7 +617,7 @@ export default function Report() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((row, index) => (
+                {dataWithoutPlans.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     {Object.entries(row)
                       .filter(([column]) => selectedColumns.includes(column))

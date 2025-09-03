@@ -91,9 +91,21 @@ export default function Report() {
       // Identificar planos de assinatura
       const identifiedPlans = identifySubscriptionPlans(filteredData);
       
-      // Salvar os planos identificados no Supabase
+      // Salvar os planos identificados no Supabase (apenas os que não existem)
       if (identifiedPlans.length > 0) {
-        await saveSubscriptionPlans(identifiedPlans);
+        const result = await saveSubscriptionPlans(identifiedPlans);
+        
+        if (result.saved > 0) {
+          toast.success(`${result.saved} plano(s) de assinatura salvo(s) com sucesso!`);
+        }
+        
+        if (result.skipped > 0) {
+          toast.info(`${result.skipped} plano(s) já existia(m) no sistema e foi(ram) ignorado(s)`);
+        }
+        
+        if (result.saved === 0 && result.skipped === 0) {
+          toast.info('Nenhum plano de assinatura foi identificado para salvar');
+        }
       }
       
       // Criar um Set com as chaves únicas dos registros que são planos

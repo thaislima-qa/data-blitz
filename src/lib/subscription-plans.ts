@@ -193,14 +193,59 @@ const calculatePlanDates = (dataVencimento: Date, tipoPlano: 'trimestral' | 'sem
 };
 
 /**
- * Salva os planos identificados no Supabase
+ * Verifica se um plano já existe no Supabase
  */
-export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<boolean> => {
-  if (plans.length === 0) return true;
+const planExists = async (plan: SubscriptionPlan): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .select('id')
+      .eq('nome_cliente', plan.nome_cliente || '')
+      .eq('tipo_plano', plan.tipo_plano)
+      .eq('data_vencimento', plan.data_vencimento.toISOString().split('T')[0])
+      .eq('data_inicio', plan.data_inicio)
+      .eq('data_fim', plan.data_fim)
+      .limit(1);
+
+    if (error) {
+      console.error('Erro ao verificar plano existente:', error);
+      return false;
+    }
+
+    return (data && data.length > 0);
+  } catch (error) {
+    console.error('Erro ao verificar plano existente:', error);
+    return false;
+  }
+};
+
+/**
+ * Salva os planos identificados no Supabase (apenas os que não existem)
+ */
+export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<{ saved: number; skipped: number }> => {
+  if (plans.length === 0) return { saved: 0, skipped: 0 };
 
   try {
+    const newPlans: SubscriptionPlan[] = [];
+    let skippedCount = 0;
+
+    // Verifica cada plano individualmente se já existe
+    for (const plan of plans) {
+      const exists = await planExists(plan);
+      if (!exists) {
+        newPlans.push(plan);
+      } else {
+        skippedCount++;
+        console.log(`Plano já existe - Cliente: ${plan.nome_cliente}, Tipo: ${plan.tipo_plano}, Vencimento: ${plan.data_vencimento.toLocaleDateString('pt-BR')}`);
+      }
+    }
+
+    if (newPlans.length === 0) {
+      return { saved: 0, skipped: skippedCount };
+    }
+
     // Converte Date para string no formato ISO para o Supabase
-    const plansForDB = plans.map(plan => ({
+    const plansForDB = newPlans.map(plan => ({
       ...plan,
       data_vencimento: plan.data_vencimento.toISOString().split('T')[0] // formato YYYY-MM-DD
     }));
@@ -211,13 +256,13 @@ export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<
 
     if (error) {
       console.error('Erro ao salvar planos:', error);
-      return false;
+      return { saved: 0, skipped: skippedCount };
     }
 
-    return true;
+    return { saved: newPlans.length, skipped: skippedCount };
   } catch (error) {
     console.error('Erro ao salvar planos:', error);
-    return false;
+    return { saved: 0, skipped: 0 };
   }
 };
 

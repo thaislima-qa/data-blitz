@@ -1,5 +1,5 @@
 import { FilterState } from "@/components/ui/data-filters";
-import { parse, isWithinInterval, isValid } from "date-fns";
+import { parse, isWithinInterval, isValid, startOfDay, endOfDay, isSameDay, isAfter, isBefore } from "date-fns";
 
 export const applyFilters = (
   data: Record<string, any>[],
@@ -58,7 +58,14 @@ export const applyFilters = (
         const parsedDate = parseFlexibleDate(dateValue);
         if (!parsedDate || !isValid(parsedDate)) return false;
         
-        return isWithinInterval(parsedDate, { start: from, end: to });
+        // Normalize all dates to start of day for accurate comparison
+        const normalizedParsedDate = startOfDay(parsedDate);
+        const normalizedFrom = startOfDay(from);
+        const normalizedTo = endOfDay(to);
+        
+        // Check if date is within range (inclusive)
+        return (isSameDay(normalizedParsedDate, normalizedFrom) || isAfter(normalizedParsedDate, normalizedFrom)) &&
+               (isSameDay(normalizedParsedDate, normalizedTo) || isBefore(normalizedParsedDate, normalizedTo));
       });
     }
   }
@@ -74,7 +81,14 @@ export const applyFilters = (
         const parsedDate = parseFlexibleDate(dateValue);
         if (!parsedDate || !isValid(parsedDate)) return false;
         
-        return isWithinInterval(parsedDate, { start: from, end: to });
+        // Normalize all dates to start of day for accurate comparison
+        const normalizedParsedDate = startOfDay(parsedDate);
+        const normalizedFrom = startOfDay(from);
+        const normalizedTo = endOfDay(to);
+        
+        // Check if date is within range (inclusive)
+        return (isSameDay(normalizedParsedDate, normalizedFrom) || isAfter(normalizedParsedDate, normalizedFrom)) &&
+               (isSameDay(normalizedParsedDate, normalizedTo) || isBefore(normalizedParsedDate, normalizedTo));
       });
     }
   }
@@ -149,24 +163,22 @@ const parseFlexibleDate = (dateValue: any): Date | null => {
   const dateStr = String(dateValue).trim();
   if (!dateStr) return null;
 
-  // Try different date formats
+  // Try different date formats - most common Brazilian formats first
   const formats = [
     'dd/MM/yyyy',
+    'dd/MM/yy',
     'dd-MM-yyyy',
+    'dd-MM-yy',
     'yyyy-MM-dd',
     'MM/dd/yyyy',
-    'dd/MM/yy',
-    'dd-MM-yy',
     'yyyy/MM/dd',
+    'd/M/yyyy',
+    'd/M/yy',
+    'd-M-yyyy',
+    'd-M-yy',
   ];
 
-  // First try native Date parsing
-  const nativeDate = new Date(dateStr);
-  if (isValid(nativeDate)) {
-    return nativeDate;
-  }
-
-  // Try specific formats
+  // Try specific formats first (more reliable than native parsing)
   for (const format of formats) {
     try {
       const parsedDate = parse(dateStr, format, new Date());
@@ -176,6 +188,16 @@ const parseFlexibleDate = (dateValue: any): Date | null => {
     } catch (error) {
       // Continue to next format
     }
+  }
+
+  // As last resort, try native Date parsing
+  try {
+    const nativeDate = new Date(dateStr);
+    if (isValid(nativeDate) && !isNaN(nativeDate.getTime())) {
+      return nativeDate;
+    }
+  } catch (error) {
+    // Ignore
   }
 
   return null;

@@ -14,6 +14,7 @@ export interface SubscriptionPlan {
  */
 export const identifySubscriptionPlans = (csvData: Record<string, any>[]): SubscriptionPlan[] => {
   const plans: SubscriptionPlan[] = [];
+  const planMap = new Map<string, SubscriptionPlan>(); // Para evitar duplicações
 
   csvData.forEach((row) => {
     // Procura por campos que contenham informações de planos
@@ -37,20 +38,32 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       if (dataVencimento) {
         const { inicio, fim } = calculatePlanDates(dataVencimento, tipoPlano);
         
-        // Procura por valor monetário
-        const valor = findValueInRow(row);
+        // Procura por valor monetário total
+        const valorTotal = findValueInRow(row);
+        
+        // Calcula o valor mensal baseado no tipo de plano
+        const valorMensal = valorTotal ? (tipoPlano === 'trimestral' ? valorTotal / 3 : valorTotal / 6) : undefined;
         
         // Procura por nome do cliente
         const nomeCliente = findClientNameInRow(row);
 
-        plans.push({
-          tipo_plano: tipoPlano,
-          data_vencimento: dataVencimento,
-          data_inicio: inicio,
-          data_fim: fim,
-          valor,
-          nome_cliente: nomeCliente
-        });
+        // Cria chave única para evitar duplicações
+        const chaveUnica = `${nomeCliente || 'sem_nome'}_${tipoPlano}_${dataVencimento.toISOString().split('T')[0]}`;
+        
+        // Só adiciona se não existe ainda
+        if (!planMap.has(chaveUnica)) {
+          const plan: SubscriptionPlan = {
+            tipo_plano: tipoPlano,
+            data_vencimento: dataVencimento,
+            data_inicio: inicio,
+            data_fim: fim,
+            valor: valorMensal,
+            nome_cliente: nomeCliente
+          };
+          
+          planMap.set(chaveUnica, plan);
+          plans.push(plan);
+        }
       }
     }
   });
@@ -141,35 +154,32 @@ const calculatePlanDates = (dataVencimento: Date, tipoPlano: 'trimestral' | 'sem
   const vencimentoMes = dataVencimento.getMonth(); // 0-based
   const vencimentoAno = dataVencimento.getFullYear();
   
-  let inicioMes: number;
-  let inicioAno: number;
+  // A data_inicio é o próprio mês/ano do vencimento
+  const inicioMes = vencimentoMes;
+  const inicioAno = vencimentoAno;
+  
+  // A data_fim é calculada baseada no tipo de plano
   let fimMes: number;
   let fimAno: number;
 
   if (tipoPlano === 'trimestral') {
-    // Plano trimestral: 3 meses
-    inicioMes = vencimentoMes - 2; // 2 meses antes
-    inicioAno = vencimentoAno;
-    
-    if (inicioMes < 0) {
-      inicioMes += 12;
-      inicioAno -= 1;
-    }
-    
-    fimMes = vencimentoMes;
+    // Plano trimestral: 3 meses a partir do vencimento
+    fimMes = vencimentoMes + 2;
     fimAno = vencimentoAno;
+    
+    if (fimMes > 11) {
+      fimMes -= 12;
+      fimAno += 1;
+    }
   } else {
-    // Plano semestral: 6 meses
-    inicioMes = vencimentoMes - 5; // 5 meses antes
-    inicioAno = vencimentoAno;
-    
-    if (inicioMes < 0) {
-      inicioMes += 12;
-      inicioAno -= 1;
-    }
-    
-    fimMes = vencimentoMes;
+    // Plano semestral: 6 meses a partir do vencimento
+    fimMes = vencimentoMes + 5;
     fimAno = vencimentoAno;
+    
+    if (fimMes > 11) {
+      fimMes -= 12;
+      fimAno += 1;
+    }
   }
 
   const formatarMesAno = (mes: number, ano: number) => {

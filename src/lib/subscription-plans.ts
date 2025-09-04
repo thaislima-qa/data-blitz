@@ -32,7 +32,7 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       tipoPlano = 'semestral';
     }
 
-     let sede: 'Maraponga' | 'Fátima' | null = null;
+    let sede: 'Maraponga' | 'Fátima' | null = null;
     
     if (rowText.includes('Thais')) {
       sede = 'Maraponga';

@@ -31,6 +31,13 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       tipoPlano = 'semestral';
     }
 
+    if (rowText.includes('Thais')) {
+      sede = 'Maraponga';
+    } else if (rowText.includes('Taiana')) {
+      sede = 'Fátima';
+    }
+    
+
     if (tipoPlano) {
       // Procura por data de vencimento
       const dataVencimento = findDateInRow(row);
@@ -59,6 +66,7 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
             data_fim: fim,
             valor: valorMensal,
             nome_cliente: nomeCliente
+            sede: sede
           };
           
           planMap.set(chaveUnica, plan);

@@ -94,7 +94,7 @@ export const generatePDF = async (
     yPosition += 10;
 
     // Total Geral
-    const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + consolidado.valorTotalPlanos;
+    const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + valorTotalPlanos;
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
     yPosition += 20;
 

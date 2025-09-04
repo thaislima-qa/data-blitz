@@ -110,11 +110,10 @@ export default function Report() {
       
       // Buscar TODOS os planos ativos existentes no Supabase baseado no filtro de data de vencimento
       let existingActivePlans: SubscriptionPlan[] = [];
-      if (filters.dataVencimento?.from && filters.dataVencimento?.to && filters.sede) {
+      if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
         existingActivePlans = await getActivePlansInPeriod(
           filters.dataVencimento.from,
-          filters.dataVencimento.to,
-          filters.sede
+          filters.dataVencimento.to
         );
       }
       

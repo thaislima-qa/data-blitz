@@ -134,7 +134,20 @@ export default function Report() {
           allPlans.push(plan);
         }
       });
+
+      const filteredActivePlans = allPlans.filter(plan => {
+        if (!filters.dataVencimento?.from || !filters.dataVencimento?.to) return true;
+        
+        const start = new Date(filters.dataVencimento.from);
+        const end = new Date(filters.dataVencimento.to);
+        
+        const due = new Date(plan.data_vencimento); // garantir que seja Date
+        
+        return due >= start && due <= end;
+      });
       
+      setActivePlans(filteredActivePlans);
+
       // Filtrar dados removendo os que são planos de assinatura
       const dataWithoutPlans = filteredData.filter(row => {
         // Verifica se este registro é um plano de assinatura
@@ -148,7 +161,6 @@ export default function Report() {
       });
       
       setDataWithoutPlans(dataWithoutPlans);
-      setActivePlans(allPlans);
       
       // Inicializar colunas selecionadas com base nos dados sem planos
       if (dataWithoutPlans.length > 0) {

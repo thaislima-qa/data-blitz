@@ -169,7 +169,7 @@ const findClientNameInRow = (row: Record<string, any>): string | undefined => {
 /**
  * Calcula as datas de início e fim do plano baseado na data de vencimento
  */
-const calculatePlanDates = (dataVencimento: Date, tipoPlano: 'trimestral' | 'semestral') => {
+export const calculatePlanDates = (dataVencimento: Date, tipoPlano: 'trimestral' | 'semestral') => {
   const vencimentoMes = dataVencimento.getMonth(); // 0-based
   const vencimentoAno = dataVencimento.getFullYear();
   
@@ -349,8 +349,11 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sed
       const filterStart = filterStartYear * 12 + filterStartMonth;
       const filterEnd = filterEndYear * 12 + filterEndMonth;
       
-      const isActive = (planStart <= filterEnd && planEnd >= filterStart);
-      
+      const isActive =
+        (planStart >= filterStart && planStart <= filterEnd) ||
+        (planEnd >= filterStart && planEnd <= filterEnd) ||
+        (planStart <= filterStart && planEnd >= filterEnd);
+       
       console.log('📅 Verificação de sobreposição:', {
         plano: `${planStartMonth}/${planStartYear} - ${planEndMonth}/${planEndYear}`,
         filtro: `${filterStartMonth}/${filterStartYear} - ${filterEndMonth}/${filterEndYear}`,
@@ -360,20 +363,38 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sed
       
       return isActive;
     });
-    console.log('✅ Planos ativos encontrados:', activePlans.length);
 
-    // Converte os dados do Supabase para o tipo correto
-    return activePlans.map(item => ({
-      tipo_plano: item.tipo_plano as 'trimestral' | 'semestral',
-      data_vencimento: new Date(item.data_vencimento),
-      data_inicio: item.data_inicio,
-      data_fim: item.data_fim,
-      valor: item.valor || undefined,
-      nome_cliente: item.nome_cliente || undefined,
-      sede: item.sede
-    }));
+    console.log('✅ Planos ativos encontrados:', activePlans.length);
+    
+    
+
+  const parseDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day); // cria Date no fuso local sem shift
+  };
+  // Converte os dados do Supabase para o tipo correto
+  const mappedPlans: SubscriptionPlan[] = activePlans.map(item => {
+  const vencimento = parseDate(item.data_vencimento); // parse seguro
+  vencimento.setHours(0, 0, 0, 0);
+
+  return {
+    tipo_plano: item.tipo_plano as 'trimestral' | 'semestral',
+    data_vencimento: vencimento,
+    data_inicio: item.data_inicio,
+    data_fim: item.data_fim,
+    valor: item.valor || undefined,
+    nome_cliente: item.nome_cliente || undefined,
+    sede: item.sede
+  };
+});
+
+  mappedPlans.sort((a, b) => a.data_vencimento.getTime() - b.data_vencimento.getTime());
+
+  return mappedPlans;
   } catch (error) {
     console.error('Erro ao buscar planos ativos:', error);
     return [];
   }
+
+  
 };

@@ -534,10 +534,19 @@ export default function Report() {
               </div>
               <p className="text-sm text-muted-foreground">Total em Aberto</p>
             </div>
+
+            <div className="p-4 border rounded-lg">
+              <div className="text-2xl font-bold text-indigo-600">
+                {formatCurrency(activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0))}
+              </div>
+              <p className="text-sm text-muted-foreground">Total Planos Trimestrais/Semmestrais</p>
+            </div>            
             
             <div className="p-4 border rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto)}
+                {formatCurrency(Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) 
+                                + consolidado.totalEmAberto 
+                                + (activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0)))}
               </div>
               <p className="text-sm text-muted-foreground">Total Geral</p>
             </div>

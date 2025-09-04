@@ -120,15 +120,23 @@ const findValueInRow = (row: Record<string, any>): number | undefined => {
   for (const value of Object.values(row)) {
     if (!value) continue;
     
-    const stringValue = String(value).trim().replace(/[R$\s]/g, '');
-    
+    const stringValue = String(value).trim();
+
+    // Verifica se a string tem padrão de número/valor monetário (ex: "R$ 123,45")
+    if (!/^R\$\s?\d{1,3}(\.\d{3})*(,\d{2})?$/.test(stringValue)) {
+      continue; // pula se não parecer valor monetário
+    }
+
+    // Remove símbolos e espaços
+    const cleanValue = stringValue.replace(/[R$\s]/g, '').replace(',', '.');
+
     // Tenta converter para número
-    const numericValue = parseFloat(stringValue.replace(',', '.'));
+    const numericValue = parseFloat(cleanValue);
     if (!isNaN(numericValue) && numericValue > 0) {
       return numericValue;
     }
   }
-  
+
   return undefined;
 };
 

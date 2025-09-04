@@ -87,13 +87,14 @@ export const generatePDF = async (
     yPosition += 10;
 
     //Total Planos Trimestrais/Semestrais
+    const valorTotalPlanos = activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total em Planos Trimestrais/Semestrais: ${formatCurrencyForPDF(activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0))}`, 20, yPosition);
+    doc.text(`Total em Planos Trimestrais/Semestrais: ${formatCurrencyForPDF(valorTotalPlanos)}`, 20, yPosition);
     yPosition += 10;
 
     // Total Geral
-    const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + (activePlans.reduce((sum, plan) => sum + (plan.valor || 0);
+    const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + consolidado.valorTotalPlanos;
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
     yPosition += 20;
 
@@ -125,6 +126,7 @@ export const generatePDF = async (
     const totalPlanos = activePlans.length;
     const trimestrais = activePlans.filter(p => p.tipo_plano === 'trimestral').length;
     const semestrais = activePlans.filter(p => p.tipo_plano === 'semestral').length;
+    const valorTotal = activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0);
 
     doc.text(`Total de Planos: ${totalPlanos}`, 20, yPosition);
     yPosition += 8;

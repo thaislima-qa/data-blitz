@@ -178,7 +178,7 @@ export const generatePDF = async (
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Planos de Mensais Ativos no Período', 20, yPosition);
+    doc.text('Planos Mensais Ativos no Período', 20, yPosition);
     yPosition += 15;
   }
 

@@ -271,9 +271,14 @@ export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<
  */
 export const getActivePlansInPeriod = async (startDate: Date, endDate: Date): Promise<SubscriptionPlan[]> => {
   try {
-    // Converte as datas para formato MM/AAAA para comparação
-    const startMonthYear = `${String(startDate.getMonth() + 1).padStart(2, '0')}/${startDate.getFullYear()}`;
-    const endMonthYear = `${String(endDate.getMonth() + 1).padStart(2, '0')}/${endDate.getFullYear()}`;
+    console.log('🔍 Buscando planos ativos no período:', {
+      startDate: startDate.toLocaleDateString('pt-BR'),
+      endDate: endDate.toLocaleDateString('pt-BR'),
+      startMonth: startDate.getMonth() + 1,
+      startYear: startDate.getFullYear(),
+      endMonth: endDate.getMonth() + 1,
+      endYear: endDate.getFullYear()
+    });
     
     const { data, error } = await supabase
       .from('subscription_plans')
@@ -284,12 +289,24 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date): Pr
       return [];
     }
 
+    console.log('📊 Planos encontrados no Supabase:', data?.length || 0);
+
     // Filtra planos cujo período se sobrepõe com o período especificado
     const activePlans = (data || []).filter(item => {
+      console.log('🔍 Verificando plano:', {
+        nome_cliente: item.nome_cliente,
+        data_inicio: item.data_inicio,
+        data_fim: item.data_fim,
+        data_vencimento: item.data_vencimento
+      });
+
       const planStartParts = item.data_inicio.split('/');
       const planEndParts = item.data_fim.split('/');
       
-      if (planStartParts.length !== 2 || planEndParts.length !== 2) return false;
+      if (planStartParts.length !== 2 || planEndParts.length !== 2) {
+        console.log('❌ Formato de data inválido para o plano:', item);
+        return false;
+      }
       
       const planStartYear = parseInt(planStartParts[1]);
       const planStartMonth = parseInt(planStartParts[0]);
@@ -301,14 +318,25 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date): Pr
       const filterEndYear = endDate.getFullYear();
       const filterEndMonth = endDate.getMonth() + 1;
       
-      // Verifica se há sobreposição de períodos
-      const planStartDate = new Date(planStartYear, planStartMonth - 1, 1);
-      const planEndDate = new Date(planEndYear, planEndMonth - 1, 31);
-      const filterStartDateObj = new Date(filterStartYear, filterStartMonth - 1, 1);
-      const filterEndDateObj = new Date(filterEndYear, filterEndMonth - 1, 31);
+      // Verifica se há sobreposição de períodos (mês/ano)
+      // Plano ativo se: período do filtro se sobrepõe com período do plano
+      const planStart = planStartYear * 12 + planStartMonth;
+      const planEnd = planEndYear * 12 + planEndMonth;
+      const filterStart = filterStartYear * 12 + filterStartMonth;
+      const filterEnd = filterEndYear * 12 + filterEndMonth;
       
-      return (planStartDate <= filterEndDateObj && planEndDate >= filterStartDateObj);
+      const isActive = (planStart <= filterEnd && planEnd >= filterStart);
+      
+      console.log('📅 Verificação de sobreposição:', {
+        plano: `${planStartMonth}/${planStartYear} - ${planEndMonth}/${planEndYear}`,
+        filtro: `${filterStartMonth}/${filterStartYear} - ${filterEndMonth}/${filterEndYear}`,
+        planStart, planEnd, filterStart, filterEnd,
+        isActive
+      });
+      
+      return isActive;
     });
+    console.log('✅ Planos ativos encontrados:', activePlans.length);
 
     // Converte os dados do Supabase para o tipo correto
     return activePlans.map(item => ({

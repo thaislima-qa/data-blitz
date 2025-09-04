@@ -86,6 +86,12 @@ export const generatePDF = async (
     doc.text(`Total em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
     yPosition += 10;
 
+    //Total Planos Trimestrais/Semestrais
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total em Planos Trimestrais/Semestrais: ${formatCurrencyForPDF(activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0))}`, 20, yPosition);
+    yPosition += 10;
+
     // Total Geral
     const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto;
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);

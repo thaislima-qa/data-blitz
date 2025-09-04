@@ -65,7 +65,7 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
             data_inicio: inicio,
             data_fim: fim,
             valor: valorMensal,
-            nome_cliente: nomeCliente
+            nome_cliente: nomeCliente,
             sede: sede
           };
           
@@ -361,7 +361,8 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date): Pr
       data_inicio: item.data_inicio,
       data_fim: item.data_fim,
       valor: item.valor || undefined,
-      nome_cliente: item.nome_cliente || undefined
+      nome_cliente: item.nome_cliente || undefined,
+      sede: item.sede
     }));
   } catch (error) {
     console.error('Erro ao buscar planos ativos:', error);

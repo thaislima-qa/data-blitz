@@ -288,20 +288,25 @@ export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<
 /**
  * Busca planos ativos cujo período (data_inicio e data_fim) esteja dentro do período especificado
  */
-export const getActivePlansInPeriod = async (startDate: Date, endDate: Date): Promise<SubscriptionPlan[]> => {
+export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sede?: string): Promise<SubscriptionPlan[]> => {
   try {
     console.log('🔍 Buscando planos ativos no período:', {
       startDate: startDate.toLocaleDateString('pt-BR'),
       endDate: endDate.toLocaleDateString('pt-BR'),
+      sede,
       startMonth: startDate.getMonth() + 1,
       startYear: startDate.getFullYear(),
       endMonth: endDate.getMonth() + 1,
       endYear: endDate.getFullYear()
     });
     
-    const { data, error } = await supabase
-      .from('subscription_plans')
-      .select('*');
+    let query = supabase.from('subscription_plans').select('*');
+    
+    if (sede) {
+      query = query.eq('sede', sede); // 👈 filtro direto no banco
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Erro ao buscar planos ativos:', error);

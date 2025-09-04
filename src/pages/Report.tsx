@@ -113,7 +113,8 @@ export default function Report() {
       if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
         existingActivePlans = await getActivePlansInPeriod(
           filters.dataVencimento.from,
-          filters.dataVencimento.to
+          filters.dataVencimento.to,
+          filters.sede
         );
       }
       

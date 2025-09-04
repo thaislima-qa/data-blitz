@@ -7,6 +7,7 @@ export interface SubscriptionPlan {
   data_fim: string; // formato mm/aaaa
   valor?: number;
   nome_cliente?: string;
+  sede: string;
 }
 
 /**

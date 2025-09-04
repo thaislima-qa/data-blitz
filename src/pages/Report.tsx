@@ -83,10 +83,10 @@ export default function Report() {
     setReportData(data);
     
     // Processar planos de assinatura e remover dos dados filtrados
-    processSubscriptionPlans(data.filteredData);
+    processSubscriptionPlans(data.filteredData, data.filters);
   }, [location.state, navigate]);
 
-  const processSubscriptionPlans = async (filteredData: Record<string, any>[]) => {
+  const processSubscriptionPlans = async (filteredData: Record<string, any>[], filters: FilterState) => {
     try {
       // Identificar planos de assinatura no CSV atual
       const identifiedPlans = identifySubscriptionPlans(filteredData);
@@ -108,12 +108,12 @@ export default function Report() {
         }
       }
       
-      // Buscar planos ativos existentes no Supabase baseado no filtro de data de vencimento
+      // Buscar TODOS os planos ativos existentes no Supabase baseado no filtro de data de vencimento
       let existingActivePlans: SubscriptionPlan[] = [];
-      if (reportData?.filters.dataVencimento?.from && reportData?.filters.dataVencimento?.to) {
+      if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
         existingActivePlans = await getActivePlansInPeriod(
-          reportData.filters.dataVencimento.from,
-          reportData.filters.dataVencimento.to
+          filters.dataVencimento.from,
+          filters.dataVencimento.to
         );
       }
       

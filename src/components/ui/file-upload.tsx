@@ -41,6 +41,10 @@ export const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
       
       if (csvFile) {
         onFileSelect(csvFile);
+        // Reset input para permitir seleção do mesmo arquivo novamente
+        if (inputRef.current) {
+          inputRef.current.value = '';
+        }
       }
     }, [onFileSelect, disabled]);
 
@@ -48,6 +52,8 @@ export const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
       const file = e.target.files?.[0];
       if (file) {
         onFileSelect(file);
+        // Reset input para permitir seleção do mesmo arquivo novamente
+        e.target.value = '';
       }
     }, [onFileSelect]);
 

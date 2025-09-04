@@ -33,11 +33,13 @@ export default function Index() {
       // Identifica e salva planos de assinatura
       const plans = identifySubscriptionPlans(result.data);
       if (plans.length > 0) {
-        const saved = await saveSubscriptionPlans(plans);
-        if (saved) {
-          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados e ${plans.length} planos identificados.`);
+        const saveResult = await saveSubscriptionPlans(plans);
+        if (saveResult.saved > 0) {
+          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados e ${saveResult.saved} plano(s) salvo(s).`);
+        } else if (saveResult.skipped > 0) {
+          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados. ${saveResult.skipped} plano(s) já existia(m).`);
         } else {
-          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados. (Erro ao salvar planos)`);
+          toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados.`);
         }
       } else {
         toast.success(`Arquivo processado com sucesso! ${result.data.length} registros carregados.`);

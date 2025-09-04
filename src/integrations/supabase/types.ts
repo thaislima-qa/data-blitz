@@ -67,6 +67,7 @@ export type Database = {
           tipo_plano: string
           updated_at: string
           valor: number | null
+          sede: string | null
         }
         Insert: {
           created_at?: string
@@ -78,6 +79,7 @@ export type Database = {
           tipo_plano: string
           updated_at?: string
           valor?: number | null
+          sede: string | null
         }
         Update: {
           created_at?: string
@@ -89,6 +91,7 @@ export type Database = {
           tipo_plano?: string
           updated_at?: string
           valor?: number | null
+          sede: string | null
         }
         Relationships: []
       }

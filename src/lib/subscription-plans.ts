@@ -34,9 +34,9 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
 
     let sede: 'Maraponga' | 'Fátima' | null = null;
     
-    if (rowText.includes('Thais')) {
+    if (rowText.includes('Thais Lima')) {
       sede = 'Maraponga';
-    } else if (rowText.includes('Taiana')) {
+    } else if (rowText.includes('Taiana Lima')) {
       sede = 'Fátima';
     }
     

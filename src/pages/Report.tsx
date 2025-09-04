@@ -88,7 +88,7 @@ export default function Report() {
 
   const processSubscriptionPlans = async (filteredData: Record<string, any>[]) => {
     try {
-      // Identificar planos de assinatura
+      // Identificar planos de assinatura no CSV atual
       const identifiedPlans = identifySubscriptionPlans(filteredData);
       
       // Salvar os planos identificados no Supabase (apenas os que não existem)
@@ -103,16 +103,35 @@ export default function Report() {
           toast.info(`${result.skipped} plano(s) já existia(m) no sistema e foi(ram) ignorado(s)`);
         }
         
-        if (result.saved === 0 && result.skipped === 0) {
-          toast.info('Nenhum plano de assinatura foi identificado para salvar');
+        if (result.saved === 0 && result.skipped === 0 && identifiedPlans.length > 0) {
+          toast.info('Nenhum plano de assinatura novo foi identificado para salvar');
         }
       }
       
-      // Criar um Set com as chaves únicas dos registros que são planos
+      // Buscar planos ativos existentes no Supabase baseado no filtro de data de vencimento
+      let existingActivePlans: SubscriptionPlan[] = [];
+      if (reportData?.filters.dataVencimento?.from && reportData?.filters.dataVencimento?.to) {
+        existingActivePlans = await getActivePlansInPeriod(
+          reportData.filters.dataVencimento.from,
+          reportData.filters.dataVencimento.to
+        );
+      }
+      
+      // Combinar planos identificados no CSV atual com os existentes no Supabase
+      // Remover duplicatas baseadas em nome_cliente + tipo_plano + data_vencimento
+      const allPlans = [...identifiedPlans];
       const planKeys = new Set<string>();
+      
       identifiedPlans.forEach(plan => {
         const key = `${plan.nome_cliente || 'sem_nome'}_${plan.tipo_plano}_${plan.data_vencimento.toISOString().split('T')[0]}`;
         planKeys.add(key);
+      });
+      
+      existingActivePlans.forEach(plan => {
+        const key = `${plan.nome_cliente || 'sem_nome'}_${plan.tipo_plano}_${plan.data_vencimento.toISOString().split('T')[0]}`;
+        if (!planKeys.has(key)) {
+          allPlans.push(plan);
+        }
       });
       
       // Filtrar dados removendo os que são planos de assinatura
@@ -128,7 +147,7 @@ export default function Report() {
       });
       
       setDataWithoutPlans(dataWithoutPlans);
-      setActivePlans(identifiedPlans);
+      setActivePlans(allPlans);
       
       // Inicializar colunas selecionadas com base nos dados sem planos
       if (dataWithoutPlans.length > 0) {

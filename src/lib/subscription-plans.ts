@@ -267,23 +267,51 @@ export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<
 };
 
 /**
- * Busca planos ativos no período especificado
+ * Busca planos ativos cujo período (data_inicio e data_fim) esteja dentro do período especificado
  */
 export const getActivePlansInPeriod = async (startDate: Date, endDate: Date): Promise<SubscriptionPlan[]> => {
   try {
+    // Converte as datas para formato MM/AAAA para comparação
+    const startMonthYear = `${String(startDate.getMonth() + 1).padStart(2, '0')}/${startDate.getFullYear()}`;
+    const endMonthYear = `${String(endDate.getMonth() + 1).padStart(2, '0')}/${endDate.getFullYear()}`;
+    
     const { data, error } = await supabase
       .from('subscription_plans')
-      .select('*')
-      .gte('data_vencimento', startDate.toISOString().split('T')[0])
-      .lte('data_vencimento', endDate.toISOString().split('T')[0]);
+      .select('*');
 
     if (error) {
       console.error('Erro ao buscar planos ativos:', error);
       return [];
     }
 
+    // Filtra planos cujo período se sobrepõe com o período especificado
+    const activePlans = (data || []).filter(item => {
+      const planStartParts = item.data_inicio.split('/');
+      const planEndParts = item.data_fim.split('/');
+      
+      if (planStartParts.length !== 2 || planEndParts.length !== 2) return false;
+      
+      const planStartYear = parseInt(planStartParts[1]);
+      const planStartMonth = parseInt(planStartParts[0]);
+      const planEndYear = parseInt(planEndParts[1]);
+      const planEndMonth = parseInt(planEndParts[0]);
+      
+      const filterStartYear = startDate.getFullYear();
+      const filterStartMonth = startDate.getMonth() + 1;
+      const filterEndYear = endDate.getFullYear();
+      const filterEndMonth = endDate.getMonth() + 1;
+      
+      // Verifica se há sobreposição de períodos
+      const planStartDate = new Date(planStartYear, planStartMonth - 1, 1);
+      const planEndDate = new Date(planEndYear, planEndMonth - 1, 31);
+      const filterStartDateObj = new Date(filterStartYear, filterStartMonth - 1, 1);
+      const filterEndDateObj = new Date(filterEndYear, filterEndMonth - 1, 31);
+      
+      return (planStartDate <= filterEndDateObj && planEndDate >= filterStartDateObj);
+    });
+
     // Converte os dados do Supabase para o tipo correto
-    return (data || []).map(item => ({
+    return activePlans.map(item => ({
       tipo_plano: item.tipo_plano as 'trimestral' | 'semestral',
       data_vencimento: new Date(item.data_vencimento),
       data_inicio: item.data_inicio,

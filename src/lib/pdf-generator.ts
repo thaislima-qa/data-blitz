@@ -121,7 +121,7 @@ export const generatePDF = async (
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('PLANOS DE ASSINATURA ATIVOS NO PERÍODO', 20, yPosition);
+    doc.text('Planos de Assinatura Ativos no Período', 20, yPosition);
     yPosition += 15;
 
     // Resumo dos planos
@@ -177,7 +177,8 @@ export const generatePDF = async (
     yPosition = 20;
 
     doc.setFontSize(14);
-    doc.text('DADOS DETALHADOS', 20, yPosition);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Planos de Mensais Ativos no Período', 20, yPosition);
     yPosition += 15;
   }
 

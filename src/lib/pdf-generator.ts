@@ -102,6 +102,10 @@ export const generatePDF = async (
     doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
     yPosition += 15;
 
+    // >>> Forçar nova página para iniciar DADOS DETALHADOS
+    doc.addPage();
+    yPosition = 20;
+
     doc.setFontSize(14);
     doc.text('DADOS DETALHADOS', 20, yPosition);
     yPosition += 15;
@@ -167,6 +171,10 @@ export const generatePDF = async (
     // Linha separadora
     doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
     yPosition += 15;
+    
+    // >>> Forçar nova página para iniciar DADOS DETALHADOS
+    doc.addPage();
+    yPosition = 20;
 
     doc.setFontSize(14);
     doc.text('DADOS DETALHADOS', 20, yPosition);

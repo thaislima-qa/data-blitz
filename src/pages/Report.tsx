@@ -319,7 +319,7 @@ export default function Report() {
 
       await generatePDF(
         filteredForPDF, 
-        `Relatório Consolidado - ${new Date().toLocaleDateString('pt-BR')}`,
+        `Relatório Consolidado - ${periodoTexto || 'Período não especificado'}`,
         logoPathCover,
         logoPathHeader,
         consolidado,

@@ -607,6 +607,61 @@ debugger
                 </div>
               </div>
 
+              {/* Totais por Método de Pagamento */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Totais por Método de Pagamento</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(() => {
+                      const totaisPorMetodo = activePlans.reduce((acc, plan) => {
+                        const metodo = plan.metodoPagamento || 'Não especificado';
+                        acc[metodo] = (acc[metodo] || 0) + (plan.valor || 0);
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(totaisPorMetodo)
+                        .sort(([,a], [,b]) => b - a)
+                        .map(([metodo, valor]) => (
+                          <div key={metodo} className="flex justify-between items-center">
+                            <span className="font-medium">{metodo}</span>
+                            <span className="text-lg font-bold text-purple-600">
+                              {formatCurrency(valor)}
+                            </span>
+                          </div>
+                        ));
+                    })()}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Quantidade por Método de Pagamento</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(() => {
+                      const quantidadePorMetodo = activePlans.reduce((acc, plan) => {
+                        const metodo = plan.metodoPagamento || 'Não especificado';
+                        acc[metodo] = (acc[metodo] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(quantidadePorMetodo)
+                        .sort(([,a], [,b]) => b - a)
+                        .map(([metodo, quantidade]) => (
+                          <div key={metodo} className="flex justify-between items-center">
+                            <span className="font-medium">{metodo}</span>
+                            <span className="text-lg font-bold text-blue-600">
+                              {quantidade}
+                            </span>
+                          </div>
+                        ));
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+
               {/* Tabela de Planos */}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300">

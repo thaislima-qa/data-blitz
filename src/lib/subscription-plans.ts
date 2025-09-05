@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { METHODS } from "http";
 
 export interface SubscriptionPlan {
   tipo_plano: 'trimestral' | 'semestral';
@@ -8,6 +9,7 @@ export interface SubscriptionPlan {
   valor?: number;
   nome_cliente?: string;
   sede: string;
+  metodoPagamento: string;
 }
 
 /**
@@ -34,11 +36,20 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
 
     let sede: 'Maraponga' | 'Fátima' | null = null;
     
-    if (rowText.includes('thais')) {
+    if (row.Consultor.includes('Thais')) {
       sede = 'Maraponga';
-    } else if (rowText.includes('taiana')) {
+    } else if (row.Consultor.includes('Taiana')) {
       sede = 'Fátima';
     }
+
+    let metodoPagamento: 'Cartão' | 'PIX' | null = null;
+debugger    
+    if (row["Método de pagamento"].includes('Cartão')) {
+      metodoPagamento = 'Cartão';
+    } else {
+      metodoPagamento = 'PIX';
+    }
+
     
 
     if (tipoPlano) {
@@ -69,7 +80,9 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
             data_fim: fim,
             valor: valorMensal,
             nome_cliente: nomeCliente,
-            sede: sede
+            sede: sede,
+            metodoPagamento: metodoPagamento
+
           };
           
           planMap.set(chaveUnica, plan);
@@ -224,6 +237,7 @@ const planExists = async (plan: SubscriptionPlan): Promise<boolean> => {
       .eq('data_vencimento', plan.data_vencimento.toISOString().split('T')[0])
       .eq('data_inicio', plan.data_inicio)
       .eq('data_fim', plan.data_fim)
+      .eq('metodoPagamento', plan.metodoPagamento)
       .limit(1);
 
     if (error) {
@@ -288,7 +302,7 @@ export const saveSubscriptionPlans = async (plans: SubscriptionPlan[]): Promise<
 /**
  * Busca planos ativos cujo período (data_inicio e data_fim) esteja dentro do período especificado
  */
-export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sede?: string): Promise<SubscriptionPlan[]> => {
+export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sede?: string, metodoPagamento?: string ): Promise<SubscriptionPlan[]> => {
   try {
     console.log('🔍 Buscando planos ativos no período:', {
       startDate: startDate.toLocaleDateString('pt-BR'),
@@ -297,13 +311,18 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sed
       startMonth: startDate.getMonth() + 1,
       startYear: startDate.getFullYear(),
       endMonth: endDate.getMonth() + 1,
-      endYear: endDate.getFullYear()
+      endYear: endDate.getFullYear(),
+      metodoPagamento,
     });
     
-    let query = supabase.from('subscription_plans').select('*');
+    let query: any = supabase.from('subscription_plans').select('*');
     
     if (sede) {
       query = query.eq('sede', sede); // 👈 filtro direto no banco
+    }
+
+    if (metodoPagamento) {
+      query = query.eq('metodoPagamento', metodoPagamento); // ✅ filtro direto no banco
     }
 
     const { data, error } = await query;
@@ -321,7 +340,8 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sed
         nome_cliente: item.nome_cliente,
         data_inicio: item.data_inicio,
         data_fim: item.data_fim,
-        data_vencimento: item.data_vencimento
+        data_vencimento: item.data_vencimento,
+        metodoPagamento: item.metodoPagamento
       });
 
       const planStartParts = item.data_inicio.split('/');
@@ -384,7 +404,8 @@ export const getActivePlansInPeriod = async (startDate: Date, endDate: Date, sed
     data_fim: item.data_fim,
     valor: item.valor || undefined,
     nome_cliente: item.nome_cliente || undefined,
-    sede: item.sede
+    sede: item.sede,
+    metodoPagamento: item.metodoPagamento || undefined
   };
 });
 

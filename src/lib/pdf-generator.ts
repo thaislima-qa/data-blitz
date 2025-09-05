@@ -130,7 +130,6 @@ export const generatePDF = async (
     const totalPlanos = activePlans.length;
     const trimestrais = activePlans.filter(p => p.tipo_plano === 'trimestral').length;
     const semestrais = activePlans.filter(p => p.tipo_plano === 'semestral').length;
-    const valorTotal = activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0);
 
     doc.text(`Total de Planos: ${totalPlanos}`, 20, yPosition);
     yPosition += 8;

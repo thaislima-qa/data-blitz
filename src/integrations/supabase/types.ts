@@ -68,6 +68,7 @@ export type Database = {
           updated_at: string
           valor: number | null
           sede: string | null
+          metodoPagamento: string | null
         }
         Insert: {
           created_at?: string
@@ -80,6 +81,7 @@ export type Database = {
           updated_at?: string
           valor?: number | null
           sede: string | null
+          metodoPagamento: string | null
         }
         Update: {
           created_at?: string
@@ -92,6 +94,7 @@ export type Database = {
           updated_at?: string
           valor?: number | null
           sede: string | null
+          metodoPagamento: string | null
         }
         Relationships: []
       }

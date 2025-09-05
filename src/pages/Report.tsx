@@ -114,7 +114,8 @@ export default function Report() {
         existingActivePlans = await getActivePlansInPeriod(
           filters.dataVencimento.from,
           filters.dataVencimento.to,
-          filters.sede
+          filters.sede,
+          filters.metodoPagamento
         );
       }
       
@@ -290,10 +291,11 @@ export default function Report() {
   if (!reportData || !consolidado) {
     return <div>Carregando...</div>;
   }
-
+debugger
   const { filters } = reportData;
   const activeFilters = Object.entries(filters).filter(([_, value]) => value).length;
 
+  
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -615,9 +617,10 @@ export default function Report() {
                       <th className="border border-gray-300 p-2 text-left font-medium">Vencimento</th>
                       <th className="border border-gray-300 p-2 text-left font-medium">Período</th>
                       <th className="border border-gray-300 p-2 text-left font-medium">Valor</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Método de pagamento</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody> 
                     {activePlans.map((plan, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="border border-gray-300 p-2">
@@ -636,6 +639,9 @@ export default function Report() {
                         </td>
                         <td className="border border-gray-300 p-2">
                           {formatCurrency(plan.valor)}
+                        </td>
+                          <td className="border border-gray-300 p-2">
+                          {plan.metodoPagamento || 'Não identificado'}
                         </td>
                       </tr>
                     ))}

@@ -93,6 +93,24 @@ export const generatePDF = async (
     doc.text(`Total em Planos Trimestrais/Semestrais: ${formatCurrencyForPDF(valorTotalPlanos)}`, 20, yPosition);
     yPosition += 10;
 
+    // Valores por forma de pagamento dos planos
+    if (activePlans && activePlans.length > 0) {
+      const totaisPorMetodoPagamento = activePlans.reduce((acc, plan) => {
+        const metodo = plan.metodoPagamento || 'Não especificado';
+        acc[metodo] = (acc[metodo] || 0) + (plan.valor || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      doc.setFont('helvetica', 'normal');
+      Object.entries(totaisPorMetodoPagamento)
+        .sort(([,a], [,b]) => b - a)
+        .forEach(([metodo, valor]) => {
+          doc.text(`  ${metodo}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
+          yPosition += 8;
+        });
+      yPosition += 2;
+    }
+
     // Total Geral
     const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + valorTotalPlanos;
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);

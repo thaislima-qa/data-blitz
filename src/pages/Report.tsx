@@ -307,6 +307,15 @@ export default function Report() {
         inadimplentes: clientesInadimplentes.size
       };
 
+      // Determinar mês/ano para o título
+      let periodoTexto = '';
+      if (filters.dataVencimento?.from) {
+        const dataVenc = new Date(filters.dataVencimento.from);
+        const mes = dataVenc.toLocaleDateString('pt-BR', { month: '2-digit' });
+        const ano = dataVenc.getFullYear();
+        periodoTexto = `${mes}/${ano}`;
+      }
+
       await generatePDF(
         filteredForPDF, 
         `Relatório Consolidado - ${new Date().toLocaleDateString('pt-BR')}`,
@@ -314,7 +323,9 @@ export default function Report() {
         consolidado,
         pdfOrientation,
         activePlans, // Incluir planos ativos
-        alunosAtivos // Incluir dados de alunos ativos
+        alunosAtivos, // Incluir dados de alunos ativos
+        filters.sede || 'Sede não especificada', // Sede
+        periodoTexto || 'Período não especificado' // Período MM/AAAA
       );
       toast.success("PDF gerado com sucesso!");
     } catch (error) {

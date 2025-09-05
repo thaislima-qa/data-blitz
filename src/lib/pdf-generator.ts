@@ -16,7 +16,9 @@ export const generatePDF = async (
     total: number;
     adimplentes: number;
     inadimplentes: number;
-  }
+  },
+  sede?: string,
+  periodo?: string
 ) => {
   if (!data.length) return;
 
@@ -27,7 +29,7 @@ export const generatePDF = async (
   });
   
   // Criar capa com logo
-  await createCoverPage(doc, title, logoPath);
+  await createCoverPage(doc, title, logoPath, sede, periodo);
   
   // Nova página para o conteúdo
   doc.addPage();
@@ -62,102 +64,89 @@ export const generatePDF = async (
   doc.text(title, 20, yPosition + 15);
   yPosition += 35;
 
-  // Adicionar consolidado se fornecido
-  if (consolidado) {
-    // Título do consolidado com destaque
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CONSOLIDADO FINANCEIRO', 20, yPosition);
-    
-    // Linha decorativa
-    const pageWidth = doc.internal.pageSize.width;
-    doc.setLineWidth(1);
-    doc.setDrawColor(138, 43, 226); // Purple color
-    doc.line(20, yPosition + 5, pageWidth - 20, yPosition + 5);
-    yPosition += 20;
-
-    // Total Recebido por Forma de Pagamento
-    if (Object.keys(consolidado.totalRecebidoPorForma).length > 0) {
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Valores Recebidos por Forma de Pagamento:', 20, yPosition);
-      yPosition += 10;
-
-      doc.setFont('helvetica', 'normal');
-      Object.entries(consolidado.totalRecebidoPorForma)
-        .sort(([,a], [,b]) => b - a)
-        .forEach(([forma, valor]) => {
-          doc.text(`${forma}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
-          yPosition += 8;
-        });
-      
-      // Total Recebido
-      const totalRecebido = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Total Recebido: ${formatCurrencyForPDF(totalRecebido)}`, 25, yPosition);
-      yPosition += 15;
-    }
-
-    // Total em Aberto
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
-    yPosition += 10;
-
-    //Total Planos Trimestrais/Semestrais
+  // Nova estrutura do consolidado conforme solicitado
+  if (consolidado && activePlans && alunosAtivos) {
+    // Calcular totais necessários
+    const totalRecebidoMensal = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0);
     const valorTotalPlanos = activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total em Planos Trimestrais/Semestrais: ${formatCurrencyForPDF(valorTotalPlanos)}`, 20, yPosition);
-    yPosition += 10;
+    
+    // Totais por método de pagamento dos planos
+    const totaisPorMetodoPagamentoPlanos = activePlans.reduce((acc, plan) => {
+      const metodo = plan.metodoPagamento || 'Não especificado';
+      acc[metodo] = (acc[metodo] || 0) + (plan.valor || 0);
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const totalGeral = totalRecebidoMensal + consolidado.totalEmAberto + valorTotalPlanos;
 
-    // Valores por forma de pagamento dos planos
-    if (activePlans && activePlans.length > 0) {
-      const totaisPorMetodoPagamento = activePlans.reduce((acc, plan) => {
-        const metodo = plan.metodoPagamento || 'Não especificado';
-        acc[metodo] = (acc[metodo] || 0) + (plan.valor || 0);
-        return acc;
-      }, {} as Record<string, number>);
-
-      doc.setFont('helvetica', 'normal');
-      Object.entries(totaisPorMetodoPagamento)
-        .sort(([,a], [,b]) => b - a)
-        .forEach(([metodo, valor]) => {
-          doc.text(`  ${metodo}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
-          yPosition += 8;
-        });
-      yPosition += 2;
-    }
-
-    // Total Geral - destacado
-    const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + valorTotalPlanos;
+    // PLANOS MENSAIS
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 128); // Azul escuro
-    doc.text(`TOTAL GERAL: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
-    doc.setTextColor(0, 0, 0); // Volta para preto
-    yPosition += 15;
-
-    // Adicionar informações de alunos ativos se fornecido
-    if (alunosAtivos) {
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TOTAL DE ALUNOS ATIVOS:', 20, yPosition);
-      yPosition += 10;
-
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Total de Alunos: ${alunosAtivos.total}`, 25, yPosition);
-      yPosition += 8;
-      doc.text(`Adimplentes: ${alunosAtivos.adimplentes}`, 25, yPosition);
-      yPosition += 8;
-      doc.text(`Inadimplentes: ${alunosAtivos.inadimplentes}`, 25, yPosition);
-      yPosition += 10;
-    }
-
+    doc.text('Planos Mensais:', 20, yPosition);
+    yPosition += 10;
+    
+    doc.setFontSize(12);
+    doc.text(`Total Recebido: ${formatCurrencyForPDF(totalRecebidoMensal)}`, 25, yPosition);
+    yPosition += 8;
+    
+    Object.entries(consolidado.totalRecebidoPorForma)
+      .sort(([,a], [,b]) => b - a)
+      .forEach(([forma, valor]) => {
+        doc.text(`${forma}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
+        yPosition += 8;
+      });
     yPosition += 10;
 
+    // PLANOS ATIVOS
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Planos Ativos:', 20, yPosition);
+    yPosition += 10;
+    
+    doc.setFontSize(12);
+    doc.text(`Total Recebido: ${formatCurrencyForPDF(valorTotalPlanos)}`, 25, yPosition);
+    yPosition += 8;
+    
+    Object.entries(totaisPorMetodoPagamentoPlanos)
+      .sort(([,a], [,b]) => b - a)
+      .forEach(([metodo, valor]) => {
+        doc.text(`${metodo}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
+        yPosition += 8;
+      });
+    yPosition += 10;
+
+    // VALOR EM ABERTO
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Valor em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
+    yPosition += 15;
+
+    // TOTAL GERAL - destacado
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 128); // Azul escuro
+    doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
+    doc.setTextColor(0, 0, 0); // Volta para preto
+    yPosition += 10;
+    
     // Linha separadora
-    doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
+    const pageWidth = doc.internal.pageSize.width;
+    doc.setLineWidth(2);
+    doc.setDrawColor(0, 0, 128);
+    doc.line(20, yPosition, pageWidth - 20, yPosition);
+    yPosition += 15;
+
+    // TOTAL DE ALUNOS ATIVOS
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL DE ALUNOS ATIVOS:', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Adimplentes: ${alunosAtivos.adimplentes}`, 25, yPosition);
+    yPosition += 8;
+    doc.text(`Inadimplentes: ${alunosAtivos.inadimplentes}`, 25, yPosition);
     yPosition += 15;
 
     // >>> Forçar nova página para iniciar DADOS DETALHADOS
@@ -566,7 +555,7 @@ export const previewPDF = (doc: jsPDF): string => {
 };
 
 // Função para criar a capa do PDF
-const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string): Promise<void> => {
+const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string, sede?: string, periodo?: string): Promise<void> => {
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   
@@ -613,10 +602,11 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string): Pr
   doc.setFont('helvetica', 'normal');
   doc.text('CENTRO DE TREINAMENTO', pageWidth / 2, 145, { align: 'center' });
 
-  // Título do relatório
-  doc.setFontSize(20);
+  // Título do relatório - "Prestação de Contas - [Sede] - MM/AAAA"
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(title, pageWidth / 2, pageHeight / 2 + 20, { align: 'center' });
+  const tituloRelatorio = `Prestação de Contas - ${sede || 'Sede não especificada'} - ${periodo || 'Período não especificado'}`;
+  doc.text(tituloRelatorio, pageWidth / 2, pageHeight / 2 + 20, { align: 'center' });
 
   // Data de geração
   doc.setFontSize(12);

@@ -12,7 +12,7 @@ import { FilterState } from "@/components/ui/data-filters";
 import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
-import logoTaianaLima from "/logo-taiana-lima.png";
+import logoTaianaLima from "@/assets/logo-taiana-lima.png";
 import { getActivePlansInPeriod, SubscriptionPlan, identifySubscriptionPlans, saveSubscriptionPlans } from "@/lib/subscription-plans";
 
 // Função para formatar valores monetários
@@ -255,13 +255,66 @@ export default function Report() {
         return newRow;
       });
 
+      // Calcular total de alunos ativos
+      const clientesData = dataWithoutPlans.length > 0 ? Object.keys(dataWithoutPlans[0]) : [];
+      const nomeColumn = clientesData.find(col => 
+        col.toLowerCase().includes('nome') || 
+        col.toLowerCase().includes('cliente') ||
+        col.toLowerCase().includes('client')
+      );
+      
+      const recebimentoColumn = clientesData.find(col => 
+        col.toLowerCase().includes('recebimento') || 
+        col.toLowerCase().includes('receb') ||
+        col.toLowerCase().includes('received') ||
+        col.toLowerCase().includes('pagamento') && !col.toLowerCase().includes('método')
+      );
+      
+      // Clientes únicos dos dados mensais
+      const clientesMensaisUnicos = new Set<string>();
+      const clientesAdimplentes = new Set<string>();
+      const clientesInadimplentes = new Set<string>();
+      
+      dataWithoutPlans.forEach(row => {
+        const nomeCliente = String(row[nomeColumn || ''] || '').trim();
+        if (nomeCliente && nomeCliente !== '') {
+          clientesMensaisUnicos.add(nomeCliente.toLowerCase());
+          
+          const recebimento = row[recebimentoColumn || ''];
+          if (recebimento && String(recebimento).trim() !== '') {
+            clientesAdimplentes.add(nomeCliente.toLowerCase());
+          } else {
+            clientesInadimplentes.add(nomeCliente.toLowerCase());
+          }
+        }
+      });
+      
+      // Clientes únicos dos planos ativos
+      const clientesPlanos = new Set<string>();
+      activePlans.forEach(plan => {
+        const nomeCliente = String(plan.nome_cliente || '').trim();
+        if (nomeCliente && nomeCliente !== '') {
+          clientesPlanos.add(nomeCliente.toLowerCase());
+        }
+      });
+      
+      // Combinar todos os clientes únicos
+      const todosClientes = new Set([...clientesMensaisUnicos, ...clientesPlanos]);
+      
+      const alunosAtivos = {
+        total: todosClientes.size,
+        adimplentes: clientesAdimplentes.size,
+        inadimplentes: clientesInadimplentes.size
+      };
+
       await generatePDF(
         filteredForPDF, 
         `Relatório Consolidado - ${new Date().toLocaleDateString('pt-BR')}`,
         logoTaianaLima,
         consolidado,
         pdfOrientation,
-        activePlans // Incluir planos ativos
+        activePlans, // Incluir planos ativos
+        alunosAtivos // Incluir dados de alunos ativos
       );
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
@@ -291,7 +344,6 @@ export default function Report() {
   if (!reportData || !consolidado) {
     return <div>Carregando...</div>;
   }
-debugger
   const { filters } = reportData;
   const activeFilters = Object.entries(filters).filter(([_, value]) => value).length;
 
@@ -529,13 +581,96 @@ debugger
         </Card>
       </div>
 
+      {/* Total de Alunos Ativos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Total de Alunos Ativos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            {(() => {
+              // Calcular alunos únicos dos dados filtrados (planos mensais)
+              const clientesData = dataWithoutPlans.length > 0 ? Object.keys(dataWithoutPlans[0]) : [];
+              const nomeColumn = clientesData.find(col => 
+                col.toLowerCase().includes('nome') || 
+                col.toLowerCase().includes('cliente') ||
+                col.toLowerCase().includes('client')
+              );
+              
+              const recebimentoColumn = clientesData.find(col => 
+                col.toLowerCase().includes('recebimento') || 
+                col.toLowerCase().includes('receb') ||
+                col.toLowerCase().includes('received') ||
+                col.toLowerCase().includes('pagamento') && !col.toLowerCase().includes('método')
+              );
+              
+              // Clientes únicos dos dados mensais
+              const clientesMensaisUnicos = new Set<string>();
+              const clientesAdimplentes = new Set<string>();
+              const clientesInadimplentes = new Set<string>();
+              
+              dataWithoutPlans.forEach(row => {
+                const nomeCliente = String(row[nomeColumn || ''] || '').trim();
+                if (nomeCliente && nomeCliente !== '') {
+                  clientesMensaisUnicos.add(nomeCliente.toLowerCase());
+                  
+                  const recebimento = row[recebimentoColumn || ''];
+                  if (recebimento && String(recebimento).trim() !== '') {
+                    clientesAdimplentes.add(nomeCliente.toLowerCase());
+                  } else {
+                    clientesInadimplentes.add(nomeCliente.toLowerCase());
+                  }
+                }
+              });
+              
+              // Clientes únicos dos planos ativos
+              const clientesPlanos = new Set<string>();
+              activePlans.forEach(plan => {
+                const nomeCliente = String(plan.nome_cliente || '').trim();
+                if (nomeCliente && nomeCliente !== '') {
+                  clientesPlanos.add(nomeCliente.toLowerCase());
+                }
+              });
+              
+              // Combinar todos os clientes únicos
+              const todosClientes = new Set([...clientesMensaisUnicos, ...clientesPlanos]);
+              
+              return (
+                <>
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {todosClientes.size}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Total de Alunos Ativos</p>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {clientesAdimplentes.size}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Adimplentes</p>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">
+                      {clientesInadimplentes.size}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Inadimplentes</p>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Resumo Geral */}
       <Card>
         <CardHeader>
           <CardTitle>Resumo Geral</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
             <div className="p-4 border rounded-lg">
               <div className="text-2xl font-bold text-green-600">
                 {formatCurrency(Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0))}

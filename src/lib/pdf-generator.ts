@@ -11,7 +11,12 @@ export const generatePDF = async (
     totalEmAberto: number;
   },
   orientation: 'portrait' | 'landscape' = 'landscape',
-  activePlans?: SubscriptionPlan[]
+  activePlans?: SubscriptionPlan[],
+  alunosAtivos?: {
+    total: number;
+    adimplentes: number;
+    inadimplentes: number;
+  }
 ) => {
   if (!data.length) return;
 
@@ -20,6 +25,12 @@ export const generatePDF = async (
     unit: 'mm',
     format: 'a4'
   });
+  
+  // Criar capa com logo
+  await createCoverPage(doc, title, logoPath);
+  
+  // Nova página para o conteúdo
+  doc.addPage();
   let yPosition = 20;
 
   // Adicionar logo se fornecida
@@ -53,10 +64,17 @@ export const generatePDF = async (
 
   // Adicionar consolidado se fornecido
   if (consolidado) {
-    doc.setFontSize(14);
+    // Título do consolidado com destaque
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('CONSOLIDADO FINANCEIRO', 20, yPosition);
-    yPosition += 15;
+    
+    // Linha decorativa
+    const pageWidth = doc.internal.pageSize.width;
+    doc.setLineWidth(1);
+    doc.setDrawColor(138, 43, 226); // Purple color
+    doc.line(20, yPosition + 5, pageWidth - 20, yPosition + 5);
+    yPosition += 20;
 
     // Total Recebido por Forma de Pagamento
     if (Object.keys(consolidado.totalRecebidoPorForma).length > 0) {
@@ -111,10 +129,32 @@ export const generatePDF = async (
       yPosition += 2;
     }
 
-    // Total Geral
+    // Total Geral - destacado
     const totalGeral = Object.values(consolidado.totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) + consolidado.totalEmAberto + valorTotalPlanos;
-    doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
-    yPosition += 20;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 128); // Azul escuro
+    doc.text(`TOTAL GERAL: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
+    doc.setTextColor(0, 0, 0); // Volta para preto
+    yPosition += 15;
+
+    // Adicionar informações de alunos ativos se fornecido
+    if (alunosAtivos) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL DE ALUNOS ATIVOS:', 20, yPosition);
+      yPosition += 10;
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Total de Alunos: ${alunosAtivos.total}`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`Adimplentes: ${alunosAtivos.adimplentes}`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`Inadimplentes: ${alunosAtivos.inadimplentes}`, 25, yPosition);
+      yPosition += 10;
+    }
+
+    yPosition += 10;
 
     // Linha separadora
     doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
@@ -523,4 +563,73 @@ export const downloadPDF = (doc: jsPDF, filename: string = 'relatorio.pdf'): voi
 
 export const previewPDF = (doc: jsPDF): string => {
   return doc.output('datauristring');
+};
+
+// Função para criar a capa do PDF
+const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string): Promise<void> => {
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  
+  // Fundo gradiente roxo simulado
+  doc.setFillColor(138, 43, 226); // Purple
+  doc.rect(0, 0, pageWidth, pageHeight / 3, 'F');
+  
+  doc.setFillColor(100, 25, 180); // Darker purple
+  doc.rect(0, pageHeight / 3, pageWidth, pageHeight / 3, 'F');
+  
+  doc.setFillColor(80, 15, 150); // Even darker purple
+  doc.rect(0, (pageHeight / 3) * 2, pageWidth, pageHeight / 3, 'F');
+
+  // Adicionar logo se disponível
+  if (logoPath) {
+    try {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+        logoImg.src = logoPath;
+      });
+
+      // Logo centralizada no topo
+      const logoSize = 80;
+      const logoX = (pageWidth - logoSize) / 2;
+      const logoY = 30;
+      
+      doc.addImage(logoImg, 'PNG', logoX, logoY, logoSize, logoSize);
+    } catch (error) {
+      console.warn('Erro ao carregar logo na capa:', error);
+    }
+  }
+
+  // Título principal
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TAIANA LIMA', pageWidth / 2, 130, { align: 'center' });
+  
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'normal');
+  doc.text('CENTRO DE TREINAMENTO', pageWidth / 2, 145, { align: 'center' });
+
+  // Título do relatório
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(title, pageWidth / 2, pageHeight / 2 + 20, { align: 'center' });
+
+  // Data de geração
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  const currentDate = new Date().toLocaleDateString('pt-BR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  doc.text(`Gerado em ${currentDate}`, pageWidth / 2, pageHeight - 40, { align: 'center' });
+
+  // Linha decorativa
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(2);
+  doc.line(50, pageHeight - 60, pageWidth - 50, pageHeight - 60);
 };

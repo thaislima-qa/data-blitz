@@ -12,7 +12,8 @@ import { FilterState } from "@/components/ui/data-filters";
 import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
-import logoTaianaLima from "@/assets/logo-taiana-lima.png";
+import logoPathCover from "@/assets/CT Taiana Lima.png";
+import logoPathHeader from "@/assets/mini-logo.png";
 import { getActivePlansInPeriod, SubscriptionPlan, identifySubscriptionPlans, saveSubscriptionPlans } from "@/lib/subscription-plans";
 
 // Função para formatar valores monetários
@@ -319,7 +320,8 @@ export default function Report() {
       await generatePDF(
         filteredForPDF, 
         `Relatório Consolidado - ${new Date().toLocaleDateString('pt-BR')}`,
-        logoTaianaLima,
+        logoPathCover,
+        logoPathHeader,
         consolidado,
         pdfOrientation,
         activePlans, // Incluir planos ativos

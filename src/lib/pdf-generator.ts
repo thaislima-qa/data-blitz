@@ -5,7 +5,8 @@ import { SubscriptionPlan } from './subscription-plans';
 export const generatePDF = async (
   data: Record<string, any>[], 
   title: string = 'Relatório CSV',
-  logoPath?: string,
+  logoPathCover?: string,   // logo da capa
+  logoPathHeader?: string,  // logo das demais páginas
   consolidado?: {
     totalRecebidoPorForma: Record<string, number>;
     totalEmAberto: number;
@@ -29,14 +30,15 @@ export const generatePDF = async (
   });
   
   // Criar capa com logo
-  await createCoverPage(doc, title, logoPath, sede, periodo);
+  await createCoverPage(doc, title, logoPathCover, sede, periodo);
   
   // Nova página para o conteúdo
   doc.addPage();
+  doc.setTextColor(0, 0, 0); // volta para preto
   let yPosition = 20;
 
   // Adicionar logo se fornecida
-  if (logoPath) {
+  if (logoPathHeader) {
     try {
       const logoImg = new Image();
       logoImg.crossOrigin = 'anonymous';
@@ -44,7 +46,7 @@ export const generatePDF = async (
       await new Promise((resolve, reject) => {
         logoImg.onload = resolve;
         logoImg.onerror = reject;
-        logoImg.src = logoPath;
+        logoImg.src = logoPathHeader;
       });
 
       // Adicionar logo no canto superior direito
@@ -251,19 +253,6 @@ export const generatePDF = async (
     },
     margin: { top: 20, left: 20, right: 20 },
   });
-
-  // Rodapé
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} - Página ${i} de ${pageCount}`,
-      20,
-      doc.internal.pageSize.height - 10
-    );
-  }
 
   // Baixar o PDF
   const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
@@ -555,7 +544,7 @@ export const previewPDF = (doc: jsPDF): string => {
 };
 
 // Função para criar a capa do PDF
-const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string, sede?: string, periodo?: string): Promise<void> => {
+const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string, sede?: string, periodo?: string): Promise<void> => {
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   
@@ -570,7 +559,7 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string, sed
   doc.rect(0, (pageHeight / 3) * 2, pageWidth, pageHeight / 3, 'F');
 
   // Adicionar logo se disponível
-  if (logoPath) {
+  if (logoPathCover) {
     try {
       const logoImg = new Image();
       logoImg.crossOrigin = 'anonymous';
@@ -578,38 +567,50 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string, sed
       await new Promise((resolve, reject) => {
         logoImg.onload = resolve;
         logoImg.onerror = reject;
-        logoImg.src = logoPath;
+        logoImg.src = logoPathCover;
       });
 
-      // Logo centralizada no topo
-      const logoSize = 80;
-      const logoX = (pageWidth - logoSize) / 2;
+      // Defina tamanho da logo
+      const logoWidth = 140;
+      const logoHeight = 80;
+      const logoX = (pageWidth - logoWidth) / 2;
       const logoY = 30;
-      
-      doc.addImage(logoImg, 'PNG', logoX, logoY, logoSize, logoSize);
+
+      // Defina a espessura da borda
+      const border = 5;
+
+      // Desenha retângulo branco atrás da logo (borda)
+      doc.setFillColor(255, 255, 255);
+      doc.rect(
+        logoX - border, 
+        logoY - border, 
+        logoWidth + border * 2, 
+        logoHeight + border * 2, 
+        'F'
+      );
+
+      // Agora desenha a logo por cima
+      doc.addImage(logoImg, 'PNG', logoX, logoY, logoWidth, logoHeight);  
+
     } catch (error) {
       console.warn('Erro ao carregar logo na capa:', error);
     }
   }
 
   // Título principal
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TAIANA LIMA', pageWidth / 2, 130, { align: 'center' });
-  
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'normal');
-  doc.text('CENTRO DE TREINAMENTO', pageWidth / 2, 145, { align: 'center' });
-
-  // Título do relatório - "Prestação de Contas - [Sede] - MM/AAAA"
+  doc.setTextColor(255, 255, 255); // <- garante branco
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
+  doc.text('CT Taiana Lima', pageWidth / 2, 155, { align: 'center' });
+
+  // Título do relatório - "Prestação de Contas - [Sede] - MM/AAAA"
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
   const tituloRelatorio = `Prestação de Contas - ${sede || 'Sede não especificada'} - ${periodo || 'Período não especificado'}`;
-  doc.text(tituloRelatorio, pageWidth / 2, pageHeight / 2 + 20, { align: 'center' });
+  doc.text(tituloRelatorio, pageWidth / 2, pageHeight / 2 + 30, { align: 'center' });
 
   // Data de geração
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const currentDate = new Date().toLocaleDateString('pt-BR', {
     year: 'numeric',
@@ -621,5 +622,5 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPath?: string, sed
   // Linha decorativa
   doc.setDrawColor(255, 255, 255);
   doc.setLineWidth(2);
-  doc.line(50, pageHeight - 60, pageWidth - 50, pageHeight - 60);
+  doc.line(50, pageHeight - 50, pageWidth - 50, pageHeight - 50);
 };

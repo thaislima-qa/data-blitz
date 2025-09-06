@@ -254,9 +254,25 @@ export const generatePDF = async (
     margin: { top: 20, left: 20, right: 20 },
   });
 
-  // Baixar o PDF
-  const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(fileName);
+  // Baixar o PDF com nome mais simples
+  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '_');
+  const fileName = `relatorio_${timestamp}.pdf`;
+  
+  try {
+    doc.save(fileName);
+  } catch (error) {
+    console.error('Erro ao salvar PDF:', error);
+    // Fallback: tentar com blob URL
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 };
 
 export interface PDFOptions {

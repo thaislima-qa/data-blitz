@@ -559,59 +559,41 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string
   doc.rect(0, (pageHeight / 3) * 2, pageWidth, pageHeight / 3, 'F');
 
   if (logoPathCover) {
-    try {
-      console.log('Tentando carregar logo da capa:', logoPathCover);
-      
-      // Converte a imagem para Base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        
-        img.onload = () => {
-          console.log('Logo carregada com sucesso');
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            console.error('Canvas não suportado');
-            return reject('Canvas não suportado');
-          }
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
-        };
-        
-        img.onerror = (error) => {
-          console.error('Erro ao carregar imagem:', error, 'Path:', logoPathCover);
-          reject(error);
-        };
-        
-        img.src = logoPathCover;
-      });
+  try {
+    // Converte a imagem para Base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('Canvas não suportado');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = logoPathCover;
+    });
 
-      console.log('Base64 da logo obtido, adicionando ao PDF');
-      
-      // Defina tamanho da logo
-      const logoWidth = 140;
-      const logoHeight = 80;
-      const logoX = (pageWidth - logoWidth) / 2;
-      const logoY = 30;
+    // Defina tamanho da logo
+    const logoWidth = 140;
+    const logoHeight = 80;
+    const logoX = (pageWidth - logoWidth) / 2;
+    const logoY = 30;
 
-      // Fundo branco para a logo
-      const border = 5;
-      doc.setFillColor(255, 255, 255);
-      doc.rect(logoX - border, logoY - border, logoWidth + border*2, logoHeight + border*2, 'F');
+    const border = 5;
+    doc.setFillColor(255, 255, 255);
+    doc.rect(logoX - border, logoY - border, logoWidth + border*2, logoHeight + border*2, 'F');
 
-      // Adiciona logo usando Base64
-      doc.addImage(base64, 'PNG', logoX, logoY, logoWidth, logoHeight);
-      console.log('Logo adicionada ao PDF com sucesso');
+    // Adiciona logo usando Base64
+    doc.addImage(base64, 'PNG', logoX, logoY, logoWidth, logoHeight);
 
-    } catch (error) {
-      console.error('Erro ao carregar logo na capa:', error);
-    }
-  } else {
-    console.log('Nenhuma logo fornecida para a capa');
+  } catch (error) {
+    console.warn('Erro ao carregar logo na capa:', error);
   }
+}
 
 
   // Título principal

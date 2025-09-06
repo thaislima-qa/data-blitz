@@ -558,43 +558,44 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string
   doc.setFillColor(80, 15, 150); // Even darker purple
   doc.rect(0, (pageHeight / 3) * 2, pageWidth, pageHeight / 3, 'F');
 
+  // Adicionar logo se disponível
   if (logoPathCover) {
-  try {
-    // Converte a imagem para Base64
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject('Canvas não suportado');
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.onerror = reject;
-      img.src = logoPathCover;
-    });
+    try {
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+        logoImg.src = logoPathCover;
+      });
 
-    // Defina tamanho da logo
-    const logoWidth = 140;
-    const logoHeight = 80;
-    const logoX = (pageWidth - logoWidth) / 2;
-    const logoY = 30;
+      // Defina tamanho da logo
+      const logoWidth = 140;
+      const logoHeight = 80;
+      const logoX = (pageWidth - logoWidth) / 2;
+      const logoY = 30;
 
-    const border = 5;
-    doc.setFillColor(255, 255, 255);
-    doc.rect(logoX - border, logoY - border, logoWidth + border*2, logoHeight + border*2, 'F');
+      // Defina a espessura da borda
+      const border = 5;
 
-    // Adiciona logo usando Base64
-    doc.addImage(base64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      // Desenha retângulo branco atrás da logo (borda)
+      doc.setFillColor(255, 255, 255);
+      doc.rect(
+        logoX - border, 
+        logoY - border, 
+        logoWidth + border * 2, 
+        logoHeight + border * 2, 
+        'F'
+      );
 
-  } catch (error) {
-    console.warn('Erro ao carregar logo na capa:', error);
+      // Agora desenha a logo por cima
+      doc.addImage(logoImg, 'PNG', logoX, logoY, logoWidth, logoHeight);  
+
+    } catch (error) {
+      console.warn('Erro ao carregar logo na capa:', error);
+    }
   }
-}
-
 
   // Título principal
   doc.setTextColor(255, 255, 255); // <- garante branco

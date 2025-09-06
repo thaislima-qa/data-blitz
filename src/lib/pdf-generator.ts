@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SubscriptionPlan } from './subscription-plans';
 
+
 export const generatePDF = async (
   data: Record<string, any>[], 
   title: string = 'Relatório CSV',
@@ -78,6 +79,8 @@ export const generatePDF = async (
       acc[metodo] = (acc[metodo] || 0) + (plan.valor || 0);
       return acc;
     }, {} as Record<string, number>);
+
+    const totalPlanos = activePlans.length;
     
     const totalGeral = totalRecebidoMensal + consolidado.totalEmAberto + valorTotalPlanos;
 
@@ -88,16 +91,20 @@ export const generatePDF = async (
     yPosition += 10;
     
     doc.setFontSize(12);
+    doc.setTextColor(0, 100, 0); // verde escuro
     doc.text(`Total Recebido: ${formatCurrencyForPDF(totalRecebidoMensal)}`, 25, yPosition);
     yPosition += 8;
     
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
     Object.entries(consolidado.totalRecebidoPorForma)
       .sort(([,a], [,b]) => b - a)
       .forEach(([forma, valor]) => {
-        doc.text(`${forma}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
+        doc.text(`${forma}: ${formatCurrencyForPDF(valor)}`, 30, yPosition); 
         yPosition += 8;
       });
-    yPosition += 10;
+    yPosition += 8;
 
     // PLANOS ATIVOS
     doc.setFontSize(14);
@@ -106,22 +113,28 @@ export const generatePDF = async (
     yPosition += 10;
     
     doc.setFontSize(12);
+    doc.setTextColor(0, 100, 0); // verde escuro
     doc.text(`Total Recebido: ${formatCurrencyForPDF(valorTotalPlanos)}`, 25, yPosition);
     yPosition += 8;
     
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
     Object.entries(totaisPorMetodoPagamentoPlanos)
       .sort(([,a], [,b]) => b - a)
       .forEach(([metodo, valor]) => {
-        doc.text(`${metodo}: ${formatCurrencyForPDF(valor)}`, 25, yPosition);
+        doc.text(`${metodo}: ${formatCurrencyForPDF(valor)}`, 30, yPosition);
         yPosition += 8;
       });
-    yPosition += 10;
+    yPosition += 8;
 
     // VALOR EM ABERTO
     doc.setFontSize(14);
+    doc.setTextColor(255, 0, 0); // vermelho em RGB
     doc.setFont('helvetica', 'bold');
     doc.text(`Valor em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
     yPosition += 15;
+
 
     // TOTAL GERAL - destacado
     doc.setFontSize(16);
@@ -138,20 +151,7 @@ export const generatePDF = async (
     doc.line(20, yPosition, pageWidth - 20, yPosition);
     yPosition += 15;
 
-    // TOTAL DE ALUNOS ATIVOS
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL DE ALUNOS ATIVOS:', 20, yPosition);
-    yPosition += 10;
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Adimplentes: ${alunosAtivos.adimplentes}`, 25, yPosition);
-    yPosition += 8;
-    doc.text(`Inadimplentes: ${alunosAtivos.inadimplentes}`, 25, yPosition);
-    yPosition += 15;
-
-    // >>> Forçar nova página para iniciar DADOS DETALHADOS
+      // >>> Forçar nova página para iniciar DADOS DETALHADOS
     doc.addPage();
     yPosition = 20;
 
@@ -182,7 +182,7 @@ export const generatePDF = async (
 
     doc.text(`Total de Planos: ${totalPlanos}`, 20, yPosition);
     yPosition += 8;
-    doc.text(`Trimestrais: ${trimestrais} | Semestrais: ${semestrais}`, 20, yPosition);
+    doc.text(`Trimestral: ${trimestrais} | Semestral: ${semestrais}`, 20, yPosition);
     yPosition += 8;
 
     // Tabela de planos
@@ -218,6 +218,21 @@ export const generatePDF = async (
 
     // Linha separadora
     doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
+    yPosition += 15;
+
+    // TOTAL DE ALUNOS ATIVOS
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total de Alunos Ativos: ${alunosAtivos.total}`, 20, yPosition);
+    yPosition += 10;
+
+
+    const adimplentesTotal = alunosAtivos.adimplentes + totalPlanos;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Adimplentes: ${adimplentesTotal}`, 25, yPosition);
+    yPosition += 8;
+    doc.text(`Inadimplentes: ${alunosAtivos.inadimplentes}`, 25, yPosition);
     yPosition += 15;
     
     // >>> Forçar nova página para iniciar DADOS DETALHADOS
@@ -255,7 +270,7 @@ export const generatePDF = async (
   });
 
   // Baixar o PDF
-  const fileName = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const fileName = `${('Report')} - ${sede || 'Sede não especificada'} - ${periodo || 'Período não especificado'}.pdf`;
   doc.save(fileName);
 };
 
@@ -560,10 +575,12 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string
 
   if (logoPathCover) {
     try {
-      console.log('Tentando carregar logo da capa:', logoPathCover);
+      //console.log('Tentando carregar logo da capa:', logoPathCover);
       
       // Converte a imagem para Base64
-      const base64 = await new Promise<string>((resolve, reject) => {
+      const base64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAuMAAAGiCAYAAABNkcjwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAADYjSURBVHhe7d3PzzRXgS/2+y9leecF2whQADFysGAcg2YykNXosshIQUpQwkhE8o ... GAcAgJUI4wAAsBJhHAAAViKMAwDASv7Vn/70pzsAAODS/nT3/wMLVXuMtsgpSQAAAABJRU5ErkJggg==";
+      /*
+      await new Promise<string>((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
@@ -587,9 +604,9 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string
         };
         
         img.src = logoPathCover;
-      });
+      });*/
 
-      console.log('Base64 da logo obtido, adicionando ao PDF');
+      //console.log('Base64 da logo obtido, adicionando ao PDF');
       
       // Defina tamanho da logo
       const logoWidth = 140;

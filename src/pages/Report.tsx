@@ -12,7 +12,7 @@ import { FilterState } from "@/components/ui/data-filters";
 import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
-import logoPathCover from "@/assets/logo-capa-taiana-lima.png";
+import logoPathCover from "@/assets/CT Taiana Lima.png";
 import logoPathHeader from "@/assets/mini-logo.png";
 import { getActivePlansInPeriod, SubscriptionPlan, identifySubscriptionPlans, saveSubscriptionPlans } from "@/lib/subscription-plans";
 

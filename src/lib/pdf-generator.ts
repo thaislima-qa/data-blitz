@@ -562,34 +562,23 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string
     try {
       console.log('Tentando carregar logo da capa:', logoPathCover);
       
-      // Criar uma promise para aguardar o carregamento da imagem
-      await new Promise<void>((resolve, reject) => {
+      // Converte a imagem para Base64
+      const base64 = await new Promise<string>((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         img.onload = () => {
-          try {
-            console.log('Logo carregada com sucesso');
-            
-            // Defina tamanho da logo
-            const logoWidth = 140;
-            const logoHeight = 80;
-            const logoX = (pageWidth - logoWidth) / 2;
-            const logoY = 30;
-
-            // Fundo branco para a logo
-            const border = 5;
-            doc.setFillColor(255, 255, 255);
-            doc.rect(logoX - border, logoY - border, logoWidth + border*2, logoHeight + border*2, 'F');
-
-            // Adiciona logo diretamente
-            doc.addImage(img, 'PNG', logoX, logoY, logoWidth, logoHeight);
-            console.log('Logo adicionada ao PDF com sucesso');
-            resolve();
-          } catch (error) {
-            console.error('Erro ao processar logo:', error);
-            reject(error);
+          console.log('Logo carregada com sucesso');
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            console.error('Canvas não suportado');
+            return reject('Canvas não suportado');
           }
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
         };
         
         img.onerror = (error) => {
@@ -597,18 +586,28 @@ const createCoverPage = async (doc: jsPDF, title: string, logoPathCover?: string
           reject(error);
         };
         
-        // Verifica se é um caminho absoluto ou relativo
-        if (logoPathCover.startsWith('http') || logoPathCover.startsWith('data:')) {
-          img.src = logoPathCover;
-        } else {
-          // Para arquivos locais, usar o caminho completo
-          img.src = new URL(logoPathCover, window.location.origin).href;
-        }
+        img.src = logoPathCover;
       });
+
+      console.log('Base64 da logo obtido, adicionando ao PDF');
+      
+      // Defina tamanho da logo
+      const logoWidth = 140;
+      const logoHeight = 80;
+      const logoX = (pageWidth - logoWidth) / 2;
+      const logoY = 30;
+
+      // Fundo branco para a logo
+      const border = 5;
+      doc.setFillColor(255, 255, 255);
+      doc.rect(logoX - border, logoY - border, logoWidth + border*2, logoHeight + border*2, 'F');
+
+      // Adiciona logo usando Base64
+      doc.addImage(base64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      console.log('Logo adicionada ao PDF com sucesso');
 
     } catch (error) {
       console.error('Erro ao carregar logo na capa:', error);
-      // Continua sem a logo se houver erro
     }
   } else {
     console.log('Nenhuma logo fornecida para a capa');

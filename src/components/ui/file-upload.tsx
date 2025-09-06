@@ -113,7 +113,7 @@ export const FileUpload = React.forwardRef<HTMLDivElement, FileUploadProps>(
           type="file"
           accept={accept}
           onChange={handleFileSelect}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
           disabled={disabled}
         />
         

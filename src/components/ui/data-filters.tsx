@@ -2,6 +2,7 @@ import * as React from "react";
 import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ export interface FilterState {
   sede?: string;
   tipo?: string;
   status?: string;
+  mesReferencia?: string; // Formato MM/AAAA
 }
 
 interface DataFiltersProps {
@@ -160,6 +162,32 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
         
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {/* Mês Referência */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Mês Referência
+              </Label>
+              <Input
+                type="text"
+                placeholder="01/2024"
+                value={filters.mesReferencia || ''}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Formatar entrada para MM/AAAA
+                  value = value.replace(/\D/g, ''); // Remove não-dígitos
+                  if (value.length >= 2) {
+                    value = value.slice(0, 2) + '/' + value.slice(2, 6);
+                  }
+                  onFiltersChange({ ...filters, mesReferencia: value });
+                }}
+                maxLength={7}
+              />
+              <p className="text-xs text-muted-foreground">
+                Formato: MM/AAAA (ex: 01/2024)
+              </p>
+            </div>
+
             {/* Data de Vencimento Filter */}
             {vencimentoColumn && (
               <div className="space-y-2">
@@ -309,6 +337,11 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
             <div className="pt-4 border-t">
               <p className="text-sm font-medium mb-2">Filtros ativos:</p>
               <div className="flex flex-wrap gap-2">
+                {filters.mesReferencia && (
+                  <Badge variant="outline" className="text-xs">
+                    Mês Referência: {filters.mesReferencia}
+                  </Badge>
+                )}
                 {filters.dataVencimento && (
                   <Badge variant="outline" className="text-xs">
                     Vencimento: {filters.dataVencimento.from?.toLocaleDateString('pt-BR')} - {filters.dataVencimento.to?.toLocaleDateString('pt-BR')}

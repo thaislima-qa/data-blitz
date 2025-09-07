@@ -109,9 +109,23 @@ export default function Report() {
         }
       }
       
-      // Buscar TODOS os planos ativos existentes no Supabase baseado no filtro de data de vencimento
+      // Buscar TODOS os planos ativos existentes no Supabase baseado no mês referência ou filtro de data de vencimento
       let existingActivePlans: SubscriptionPlan[] = [];
-      if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
+      
+      if (filters.mesReferencia) {
+        // Se há mês referência, usar esse mês para buscar planos ativos
+        const [mes, ano] = filters.mesReferencia.split('/');
+        if (mes && ano) {
+          const startDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
+          const endDate = new Date(parseInt(ano), parseInt(mes), 0); // Último dia do mês
+          existingActivePlans = await getActivePlansInPeriod(
+            startDate,
+            endDate,
+            filters.sede,
+            filters.metodoPagamento
+          );
+        }
+      } else if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
         existingActivePlans = await getActivePlansInPeriod(
           filters.dataVencimento.from,
           filters.dataVencimento.to,
@@ -138,14 +152,22 @@ export default function Report() {
       });
 
       const filteredActivePlans = allPlans.filter(plan => {
-        if (!filters.dataVencimento?.from || !filters.dataVencimento?.to) return true;
-        
-        const start = new Date(filters.dataVencimento.from);
-        const end = new Date(filters.dataVencimento.to);
-        
-        const due = new Date(plan.data_vencimento); // garantir que seja Date
-        
-        return due >= start && due <= end;
+        // Usar mês referência se disponível, senão usar data de vencimento
+        if (filters.mesReferencia) {
+          const [mes, ano] = filters.mesReferencia.split('/');
+          if (mes && ano) {
+            const start = new Date(parseInt(ano), parseInt(mes) - 1, 1);
+            const end = new Date(parseInt(ano), parseInt(mes), 0);
+            const due = new Date(plan.data_vencimento);
+            return due >= start && due <= end;
+          }
+        } else if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
+          const start = new Date(filters.dataVencimento.from);
+          const end = new Date(filters.dataVencimento.to);
+          const due = new Date(plan.data_vencimento);
+          return due >= start && due <= end;
+        }
+        return true;
       });
       
       setActivePlans(filteredActivePlans);
@@ -310,7 +332,9 @@ export default function Report() {
 
       // Determinar mês/ano para o título
       let periodoTexto = '';
-      if (filters.dataVencimento?.from) {
+      if (filters.mesReferencia) {
+        periodoTexto = filters.mesReferencia;
+      } else if (filters.dataVencimento?.from) {
         const dataVenc = new Date(filters.dataVencimento.from);
         const mes = dataVenc.toLocaleDateString('pt-BR', { month: '2-digit' });
         const ano = dataVenc.getFullYear();
@@ -411,6 +435,11 @@ export default function Report() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
+              {filters.mesReferencia && (
+                <Badge variant="outline">
+                  Mês Referência: {filters.mesReferencia}
+                </Badge>
+              )}
               {filters.dataVencimento && (
                 <Badge variant="outline">
                   Vencimento: {filters.dataVencimento.from?.toLocaleDateString('pt-BR')} - {filters.dataVencimento.to?.toLocaleDateString('pt-BR')}

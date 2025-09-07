@@ -43,11 +43,11 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
     }
 
     let metodoPagamento: 'Cartão' | 'PIX' | null = null;
-debugger    
+    
     if (row["Método de pagamento"].includes('Cartão')) {
-      metodoPagamento = 'Cartão de Crédito';
+      metodoPagamento = 'Cartão';
     } else {
-      metodoPagamento = 'PIX/Depósito bancário';
+      metodoPagamento = 'PIX';
     }
 
     

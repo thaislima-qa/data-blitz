@@ -269,6 +269,15 @@ export const generatePDF = async (
     margin: { top: 20, left: 20, right: 20 },
   });
 
+  // Adicionar marca d'água em todas as páginas (exceto capa)
+  if (logoPathHeader) {
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 2; i <= pageCount; i++) { // Começa da página 2 (pula a capa)
+      doc.setPage(i);
+      await addWatermark(doc, logoPathHeader);
+    }
+  }
+
   // Baixar o PDF
   const fileName = `${('Report')} - ${sede || 'Sede não especificada'} - ${periodo || 'Período não especificado'}.pdf`;
   doc.save(fileName);
@@ -301,10 +310,10 @@ export interface ReportSection {
   };
 }
 
-export const generatePDFReport = (
+export const generatePDFReport = async (
   sections: ReportSection[],
   options: PDFOptions = {}
-): jsPDF => {
+): Promise<jsPDF> => {
   const defaultOptions: Required<PDFOptions> = {
     title: 'Relatório de Dados',
     author: 'Sistema de Relatórios',
@@ -355,7 +364,7 @@ export const generatePDFReport = (
 
   // Add footer to all pages
   if (defaultOptions.includeFooter) {
-    addDocumentFooter(doc, defaultOptions);
+    await addDocumentFooter(doc, defaultOptions);
   }
 
   return doc;
@@ -476,13 +485,66 @@ const addSection = (
   return currentY;
 };
 
-const addDocumentFooter = (doc: jsPDF, options: Required<PDFOptions>): void => {
+const addWatermark = async (doc: jsPDF, logoPath?: string): Promise<void> => {
+  if (!logoPath) return;
+
+  try {
+    const response = await fetch(logoPath);
+    const blob = await response.blob();
+    const base64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Tamanho da marca d'água (menor para não atrapalhar a leitura)
+    const watermarkSize = Math.min(pageWidth, pageHeight) * 0.3; // 30% do tamanho da página
+    const x = (pageWidth - watermarkSize) / 2;
+    const y = (pageHeight - watermarkSize) / 2;
+    
+    // Adiciona a marca d'água com opacity baixa
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        if (ctx) {
+          ctx.globalAlpha = 0.15; // 15% de opacidade
+          ctx.drawImage(img, 0, 0);
+        }
+        resolve();
+      };
+      img.onerror = reject;
+      img.src = base64;
+    });
+    
+    const watermarkBase64 = canvas.toDataURL();
+    doc.addImage(watermarkBase64, 'PNG', x, y, watermarkSize, watermarkSize);
+  } catch (error) {
+    console.warn('Erro ao adicionar marca d\'água:', error);
+  }
+};
+
+const addDocumentFooter = async (doc: jsPDF, options: Required<PDFOptions>, logoPath?: string): Promise<void> => {
   const pageCount = doc.getNumberOfPages();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Adiciona marca d'água em todas as páginas exceto a primeira (capa)
+    if (i > 1 && logoPath) {
+      await addWatermark(doc, logoPath);
+    }
+    
     doc.setFontSize(8);
     doc.setFont(undefined, 'normal');
     

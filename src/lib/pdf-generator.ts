@@ -501,7 +501,7 @@ const addWatermark = async (doc: jsPDF, logoPath?: string): Promise<void> => {
     const pageHeight = doc.internal.pageSize.getHeight();
     
     // Tamanho da marca d'água (menor para não atrapalhar a leitura)
-    const watermarkSize = Math.min(pageWidth, pageHeight) * 0.3; // 30% do tamanho da página
+    const watermarkSize = Math.min(pageWidth, pageHeight) * 0.5; // 50% do tamanho da página
     const x = (pageWidth - watermarkSize) / 2;
     const y = (pageHeight - watermarkSize) / 2;
     

@@ -188,6 +188,7 @@ export default function Report() {
         if (filters.mesReferencia) {
           const [mes, ano] = filters.mesReferencia.split('/');
           if (mes && ano) {
+            // Data limite: primeiro dia do mês de referência
             const mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
             
             // Procurar coluna de data de vencimento
@@ -202,6 +203,7 @@ export default function Report() {
               const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
               const dataVencimento = parseDate(dataVencimentoStr);
               
+              // Inadimplente: data de vencimento anterior ao mês de referência
               if (dataVencimento && dataVencimento < mesReferenciaDate) {
                 isInadimplente = true;
               }
@@ -297,6 +299,7 @@ export default function Report() {
         const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
         const dataVencimento = parseDate(dataVencimentoStr);
         
+        // Inadimplente: data de vencimento anterior ao mês de referência
         if (dataVencimento && dataVencimento < mesReferenciaDate) {
           isInadimplente = true;
           totalInadimplentes += valor;

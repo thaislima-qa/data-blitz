@@ -303,6 +303,7 @@ export default function Report() {
         if (dataVencimento && dataVencimento < mesReferenciaDate) {
           isInadimplente = true;
           totalInadimplentes += valor;
+          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor: ${valor}`);
         }
       }
       
@@ -320,6 +321,10 @@ export default function Report() {
         }
       }
     });
+
+    console.log(`📊 Total inadimplentes calculado: ${totalInadimplentes}`);
+    console.log(`📊 Mês referência usado: ${reportData?.filters.mesReferencia}`);
+    console.log(`📊 Data limite para inadimplência: ${mesReferenciaDate?.toLocaleDateString('pt-BR')}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
   };
@@ -661,7 +666,7 @@ export default function Report() {
       )}
 
       {/* Consolidado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Total Recebido por Forma de Pagamento */}
         <Card>
           <CardHeader>
@@ -717,6 +722,26 @@ export default function Report() {
               </div>
               <p className="text-muted-foreground">
                 Total de valores ainda não recebidos
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Inadimplentes Recebimentos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Inadimplentes Recebimentos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <div className="text-3xl font-bold text-red-600 mb-2">
+                {formatCurrency(consolidado.totalInadimplentes)}
+              </div>
+              <p className="text-muted-foreground">
+                Recebimentos com vencimento anterior ao mês de referência
               </p>
             </div>
           </CardContent>

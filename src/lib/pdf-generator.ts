@@ -11,6 +11,7 @@ export const generatePDF = async (
   consolidado?: {
     totalRecebidoPorForma: Record<string, number>;
     totalEmAberto: number;
+    totalInadimplentes: number;
   },
   orientation: 'portrait' | 'landscape' = 'landscape',
   activePlans?: SubscriptionPlan[],
@@ -82,7 +83,7 @@ export const generatePDF = async (
 
     const totalPlanos = activePlans.length;
     
-    const totalGeral = totalRecebidoMensal + consolidado.totalEmAberto + valorTotalPlanos;
+    const totalGeral = totalRecebidoMensal + consolidado.totalEmAberto + valorTotalPlanos + (consolidado.totalInadimplentes || 0);
 
     // PLANOS MENSAIS
     doc.setFontSize(14);
@@ -127,6 +128,15 @@ export const generatePDF = async (
         yPosition += 8;
       });
     yPosition += 8;
+
+    // INADIMPLENTES RECEBIMENTOS
+    if (consolidado.totalInadimplentes > 0) {
+      doc.setFontSize(14);
+      doc.setTextColor(255, 0, 0); // vermelho
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Inadimplentes Recebimentos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
+      yPosition += 15;
+    }
 
     // VALOR EM ABERTO
     doc.setFontSize(14);

@@ -67,6 +67,7 @@ export default function Report() {
   const [consolidado, setConsolidado] = useState<{
     totalRecebidoPorForma: Record<string, number>;
     totalEmAberto: number;
+    totalInadimplentes: number;
   } | null>(null);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [pdfOrientation, setPdfOrientation] = useState<'portrait' | 'landscape'>('landscape');
@@ -172,7 +173,7 @@ export default function Report() {
       
       setActivePlans(filteredActivePlans);
 
-      // Filtrar dados removendo os que são planos de assinatura
+      // Filtrar dados removendo os que são planos de assinatura e inadimplentes
       const dataWithoutPlans = filteredData.filter(row => {
         // Verifica se este registro é um plano de assinatura
         const rowText = Object.entries(row)
@@ -181,7 +182,34 @@ export default function Report() {
           .toLowerCase();
           
         const isSubscriptionPlan = rowText.includes('trimestral') || rowText.includes('semestral');
-        return !isSubscriptionPlan;
+        
+        // Verifica se é inadimplente baseado no mês de referência
+        let isInadimplente = false;
+        if (filters.mesReferencia) {
+          const [mes, ano] = filters.mesReferencia.split('/');
+          if (mes && ano) {
+            const mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
+            
+            // Procurar coluna de data de vencimento
+            const columns = Object.keys(row);
+            const dataVencimentoColumn = columns.find(col => 
+              col.toLowerCase().includes('vencimento') || 
+              col.toLowerCase().includes('due') ||
+              col.toLowerCase().includes('data') && col.toLowerCase().includes('venc')
+            );
+            
+            if (dataVencimentoColumn) {
+              const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
+              const dataVencimento = parseDate(dataVencimentoStr);
+              
+              if (dataVencimento && dataVencimento < mesReferenciaDate) {
+                isInadimplente = true;
+              }
+            }
+          }
+        }
+        
+        return !isSubscriptionPlan && !isInadimplente;
       });
       
       setDataWithoutPlans(dataWithoutPlans);
@@ -236,8 +264,24 @@ export default function Report() {
       col.toLowerCase().includes('type')
     );
 
+    const dataVencimentoColumn = columns.find(col => 
+      col.toLowerCase().includes('vencimento') || 
+      col.toLowerCase().includes('due') ||
+      col.toLowerCase().includes('data') && col.toLowerCase().includes('venc')
+    );
+
     const totalRecebidoPorForma: Record<string, number> = {};
     let totalEmAberto = 0;
+    let totalInadimplentes = 0;
+
+    // Obter mês de referência para comparação
+    let mesReferenciaDate: Date | null = null;
+    if (reportData?.filters.mesReferencia) {
+      const [mes, ano] = reportData.filters.mesReferencia.split('/');
+      if (mes && ano) {
+        mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
+      }
+    }
 
     data.forEach(row => {
       // Melhor parsing de valores monetários
@@ -247,19 +291,72 @@ export default function Report() {
       const recebimento = row[recebimentoColumn || ''];
       const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
       
-      // Se tem data de recebimento (recebido)
-      if (recebimento && String(recebimento).trim() !== '') {
-        if (!totalRecebidoPorForma[metodoPagamento]) {
-          totalRecebidoPorForma[metodoPagamento] = 0;
+      // Verificar se é inadimplente baseado no mês de referência
+      let isInadimplente = false;
+      if (mesReferenciaDate && dataVencimentoColumn) {
+        const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
+        const dataVencimento = parseDate(dataVencimentoStr);
+        
+        if (dataVencimento && dataVencimento < mesReferenciaDate) {
+          isInadimplente = true;
+          totalInadimplentes += valor;
         }
-        totalRecebidoPorForma[metodoPagamento] += valor;
-      } else {
-        // Em aberto
-        totalEmAberto += valor;
+      }
+      
+      // Se não é inadimplente, contabilizar normalmente
+      if (!isInadimplente) {
+        // Se tem data de recebimento (recebido)
+        if (recebimento && String(recebimento).trim() !== '') {
+          if (!totalRecebidoPorForma[metodoPagamento]) {
+            totalRecebidoPorForma[metodoPagamento] = 0;
+          }
+          totalRecebidoPorForma[metodoPagamento] += valor;
+        } else {
+          // Em aberto
+          totalEmAberto += valor;
+        }
       }
     });
 
-    setConsolidado({ totalRecebidoPorForma, totalEmAberto });
+    setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
+  };
+
+  // Função auxiliar para fazer parsing de datas
+  const parseDate = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    
+    const cleanDate = String(dateStr).trim();
+    
+    // Tenta diferentes formatos de data
+    const dateFormats = [
+      // dd/mm/yyyy ou dd/mm/yy
+      /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/,
+      // dd/mm
+      /(\d{1,2})\/(\d{1,2})/,
+      // dd-mm-yyyy
+      /(\d{1,2})-(\d{1,2})-(\d{2,4})/,
+    ];
+
+    for (const format of dateFormats) {
+      const match = cleanDate.match(format);
+      if (match) {
+        let day = parseInt(match[1]);
+        let month = parseInt(match[2]);
+        let year = match[3] ? parseInt(match[3]) : new Date().getFullYear();
+        
+        // Ajusta ano de 2 dígitos
+        if (year < 100) {
+          year += year < 50 ? 2000 : 1900;
+        }
+        
+        // Valida data
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return new Date(year, month - 1, day);
+        }
+      }
+    }
+    
+    return null;
   };
 
   const handleGeneratePDF = async () => {

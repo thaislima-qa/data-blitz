@@ -70,16 +70,18 @@ export const applyFilters = (
     }
   }
 
-  // Apply Data de Recebimento filter
+  // Apply Data de Recebimento filter - inclui recebidos no período + em aberto
   if (filters.dataRecebimento && recebimentoColumn) {
     const { from, to } = filters.dataRecebimento;
     if (from && to) {
       filteredData = filteredData.filter(row => {
         const dateValue = row[recebimentoColumn];
-        if (!dateValue) return false;
+        
+        // Se não tem data de recebimento (em aberto), inclui no resultado
+        if (!dateValue || String(dateValue).trim() === '') return true;
         
         const parsedDate = parseFlexibleDate(dateValue);
-        if (!parsedDate || !isValid(parsedDate)) return false;
+        if (!parsedDate || !isValid(parsedDate)) return true; // Considera como em aberto se não conseguir parsear
         
         // Normalize all dates to start of day for accurate comparison
         const normalizedParsedDate = startOfDay(parsedDate);

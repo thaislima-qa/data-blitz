@@ -318,7 +318,10 @@ export default function Report() {
       const [mes, ano] = reportData.filters.mesReferencia.split('/');
       if (mes && ano) {
         mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
+        console.log(`📅 Mês referência configurado: ${reportData.filters.mesReferencia} -> Data limite: ${mesReferenciaDate.toLocaleDateString('pt-BR')}`);
       }
+    } else {
+      console.log('⚠️ Mês referência não informado');
     }
 
     data.forEach(row => {
@@ -335,12 +338,21 @@ export default function Report() {
         const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
         const dataVencimento = parseDate(dataVencimentoStr);
         
+        console.log(`📋 Analisando registro: Data vencimento: ${dataVencimentoStr} -> Parseada: ${dataVencimento?.toLocaleDateString('pt-BR')} | Limite: ${mesReferenciaDate.toLocaleDateString('pt-BR')}`);
+        
         // Inadimplente: data de vencimento anterior ao mês de referência
         if (dataVencimento && dataVencimento < mesReferenciaDate) {
           isInadimplente = true;
           totalInadimplentes += valor;
-          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor: ${valor}`);
+          console.log(`🔴 Inadimplente encontrado: ${dataVencimentoStr} - Valor: ${valor} - Total inadimplentes: ${totalInadimplentes}`);
+        } else if (dataVencimento) {
+          console.log(`✅ Não inadimplente: ${dataVencimentoStr} - Vencimento >= mês referência`);
+        } else {
+          console.log(`❓ Data de vencimento inválida: ${dataVencimentoStr}`);
         }
+      } else {
+        if (!mesReferenciaDate) console.log('⚠️ Mês referência não definido para verificar inadimplência');
+        if (!dataVencimentoColumn) console.log('⚠️ Coluna de data de vencimento não encontrada');
       }
       
       // Se não é inadimplente, contabilizar normalmente
@@ -361,8 +373,8 @@ export default function Report() {
     console.log(`📊 Total inadimplentes calculado: ${totalInadimplentes}`);
     console.log(`📊 Mês referência usado: ${reportData?.filters.mesReferencia}`);
     console.log(`📊 Data limite para inadimplência: ${mesReferenciaDate?.toLocaleDateString('pt-BR')}`);
-
-    setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
+    console.log(`📊 Total em aberto: ${totalEmAberto}`);
+    console.log(`📊 Total recebido por forma:`, totalRecebidoPorForma);
   };
 
   // Função auxiliar para fazer parsing de datas

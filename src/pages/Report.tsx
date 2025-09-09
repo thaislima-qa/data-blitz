@@ -84,11 +84,14 @@ export default function Report() {
     
     setReportData(data);
     
-    // Processar planos de assinatura e remover dos dados filtrados
-    processSubscriptionPlans(data.filteredData, data.filters);
+    // Calcular consolidado com dados originais (sem processar planos ainda)
+    calculateConsolidado(data.filteredData);
+    
+    // Processar planos apenas para exibição dos cards, mas manter dados originais no preview
+    processSubscriptionPlansDisplay(data.filteredData, data.filters);
   }, [location.state, navigate]);
 
-  const processSubscriptionPlans = async (filteredData: Record<string, any>[], filters: FilterState) => {
+  const processSubscriptionPlansDisplay = async (filteredData: Record<string, any>[], filters: FilterState) => {
     try {
       // Identificar planos de assinatura no CSV atual
       const identifiedPlans = identifySubscriptionPlans(filteredData);
@@ -235,7 +238,40 @@ export default function Report() {
     }
   };
 
+  const processSubscriptionPlansForPDF = (filteredData: Record<string, any>[]): Record<string, any>[] => {
+    try {
+      // Identificar planos de assinatura no CSV atual
+      const identifiedPlans = identifySubscriptionPlans(filteredData);
+      
+      const columns = Object.keys(filteredData[0] || {});
+      const nomeColumn = columns.find(col => 
+        col.toLowerCase().includes('nome') || 
+        col.toLowerCase().includes('cliente') ||
+        col.toLowerCase().includes('client')
+      );
+      
+      const vencimentoColumn = columns.find(col => 
+        col.toLowerCase().includes('vencimento') || 
+        col.toLowerCase().includes('venc') ||
+        col.toLowerCase().includes('due')
+      );
+      
+      // Remover os planos identificados dos dados filtrados
+      const dataWithoutSubscriptions = filteredData.filter(row => {
+        return !identifiedPlans.some(plan => {
+          const rowDate = parseDate(row[vencimentoColumn]);
+          const planDate = new Date(plan.data_vencimento);
+          return plan.nome_cliente === row[nomeColumn] && 
+                 rowDate && planDate && rowDate.getTime() === planDate.getTime();
+        });
+      });
 
+      return dataWithoutSubscriptions;
+    } catch (error) {
+      console.error('Erro ao processar planos de assinatura para PDF:', error);
+      return filteredData;
+    }
+  };
 
   const calculateConsolidado = (data: Record<string, any>[]) => {
     if (!data.length) return;
@@ -303,6 +339,7 @@ export default function Report() {
         if (dataVencimento && dataVencimento < mesReferenciaDate) {
           isInadimplente = true;
           totalInadimplentes += valor;
+          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor: ${valor}`);
         }
       }
       
@@ -320,6 +357,10 @@ export default function Report() {
         }
       }
     });
+
+    console.log(`📊 Total inadimplentes calculado: ${totalInadimplentes}`);
+    console.log(`📊 Mês referência usado: ${reportData?.filters.mesReferencia}`);
+    console.log(`📊 Data limite para inadimplência: ${mesReferenciaDate?.toLocaleDateString('pt-BR')}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
   };
@@ -369,8 +410,11 @@ export default function Report() {
     }
 
     try {
+      // Processar dados removendo planos de assinatura apenas para o PDF
+      const dataWithoutPlansForPDF = processSubscriptionPlansForPDF(reportData.filteredData);
+      
       // Filtrar dados para incluir apenas as colunas selecionadas (sem planos de assinatura)
-      const filteredForPDF = dataWithoutPlans.map(row => {
+      const filteredForPDF = dataWithoutPlansForPDF.map(row => {
         const newRow: Record<string, any> = {};
         selectedColumns.forEach(col => {
           newRow[col] = row[col];
@@ -379,7 +423,7 @@ export default function Report() {
       });
 
       // Calcular total de alunos ativos
-      const clientesData = dataWithoutPlans.length > 0 ? Object.keys(dataWithoutPlans[0]) : [];
+      const clientesData = dataWithoutPlansForPDF.length > 0 ? Object.keys(dataWithoutPlansForPDF[0]) : [];
       const nomeColumn = clientesData.find(col => 
         col.toLowerCase().includes('nome') || 
         col.toLowerCase().includes('cliente') ||
@@ -398,7 +442,7 @@ export default function Report() {
       const clientesAdimplentes = new Set<string>();
       const clientesInadimplentes = new Set<string>();
       
-      dataWithoutPlans.forEach(row => {
+      dataWithoutPlansForPDF.forEach(row => {
         const nomeCliente = String(row[nomeColumn || ''] || '').trim();
         if (nomeCliente && nomeCliente !== '') {
           clientesMensaisUnicos.add(nomeCliente.toLowerCase());
@@ -661,7 +705,7 @@ export default function Report() {
       )}
 
       {/* Consolidado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Total Recebido por Forma de Pagamento */}
         <Card>
           <CardHeader>
@@ -717,6 +761,26 @@ export default function Report() {
               </div>
               <p className="text-muted-foreground">
                 Total de valores ainda não recebidos
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Inadimplentes Recebimentos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Inadimplentes Recebimentos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <div className="text-3xl font-bold text-red-600 mb-2">
+                {formatCurrency(consolidado.totalInadimplentes)}
+              </div>
+              <p className="text-muted-foreground">
+                Recebimentos com vencimento anterior ao mês de referência
               </p>
             </div>
           </CardContent>
@@ -988,14 +1052,14 @@ export default function Report() {
       {/* Preview dos Dados */}
       <Card>
         <CardHeader>
-          <CardTitle>Dados Filtrados ({dataWithoutPlans.length} registros)</CardTitle>
+          <CardTitle>Preview dos Dados ({reportData?.filteredData.length || 0} registros)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-50">
-                  {dataWithoutPlans.length > 0 && Object.keys(dataWithoutPlans[0])
+                  {reportData?.filteredData.length > 0 && Object.keys(reportData.filteredData[0])
                     .filter(column => selectedColumns.includes(column))
                     .map((column) => (
                     <th key={column} className="border border-gray-300 p-2 text-left font-medium">
@@ -1008,7 +1072,7 @@ export default function Report() {
                 </tr>
               </thead>
               <tbody>
-                {dataWithoutPlans.map((row, index) => (
+                {reportData?.filteredData.map((row, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     {Object.entries(row)
                       .filter(([column]) => selectedColumns.includes(column))

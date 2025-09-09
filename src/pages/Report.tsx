@@ -112,7 +112,7 @@ export default function Report() {
       
       // Buscar TODOS os planos ativos existentes no Supabase baseado no mês referência ou filtro de data de vencimento
       let existingActivePlans: SubscriptionPlan[] = [];
-      
+     
       if (filters.mesReferencia) {
         // Se há mês referência, usar esse mês para buscar planos ativos
         const [mes, ano] = filters.mesReferencia.split('/');
@@ -150,28 +150,10 @@ export default function Report() {
         if (!planKeys.has(key)) {
           allPlans.push(plan);
         }
-      });
-
-      const filteredActivePlans = allPlans.filter(plan => {
-        // Usar mês referência se disponível, senão usar data de vencimento
-        if (filters.mesReferencia) {
-          const [mes, ano] = filters.mesReferencia.split('/');
-          if (mes && ano) {
-            const start = new Date(parseInt(ano), parseInt(mes) - 1, 1);
-            const end = new Date(parseInt(ano), parseInt(mes), 0);
-            const due = new Date(plan.data_vencimento);
-            return due >= start && due <= end;
-          }
-        } else if (filters.dataVencimento?.from && filters.dataVencimento?.to) {
-          const start = new Date(filters.dataVencimento.from);
-          const end = new Date(filters.dataVencimento.to);
-          const due = new Date(plan.data_vencimento);
-          return due >= start && due <= end;
-        }
-        return true;
+        return allPlans
       });
       
-      setActivePlans(filteredActivePlans);
+      setActivePlans(allPlans);
 
       // Filtrar dados removendo os que são planos de assinatura e inadimplentes
       const dataWithoutPlans = filteredData.filter(row => {
@@ -223,7 +205,7 @@ export default function Report() {
       }
       
       // Calcular consolidado apenas com dados que não são planos
-      calculateConsolidado(dataWithoutPlans);
+      calculateConsolidado(dataWithoutPlans, filters);
       
     } catch (error) {
       console.error('Erro ao processar planos de assinatura:', error);
@@ -231,13 +213,13 @@ export default function Report() {
       
       // Em caso de erro, usar os dados originais
       setDataWithoutPlans(filteredData);
-      calculateConsolidado(filteredData);
+      calculateConsolidado(filteredData, filters);
     }
   };
 
 
 
-  const calculateConsolidado = (data: Record<string, any>[]) => {
+  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState) => {
     if (!data.length) return;
 
     const columns = Object.keys(data[0]);
@@ -275,16 +257,16 @@ export default function Report() {
     const totalRecebidoPorForma: Record<string, number> = {};
     let totalEmAberto = 0;
     let totalInadimplentes = 0;
-
+debugger
     // Obter mês de referência para comparação
     let mesReferenciaDate: Date | null = null;
-    if (reportData?.filters.mesReferencia) {
-      const [mes, ano] = reportData.filters.mesReferencia.split('/');
+    if (filters.mesReferencia) {
+      const [mes, ano] = filters.mesReferencia.split('/');
       if (mes && ano) {
         mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
       }
     }
-
+debugger
     data.forEach(row => {
       // Melhor parsing de valores monetários
       const valorStr = String(row[valorColumn || ''] || '0');
@@ -292,7 +274,7 @@ export default function Report() {
       
       const recebimento = row[recebimentoColumn || ''];
       const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
-      
+      debugger
       // Verificar se é inadimplente baseado no mês de referência
       let isInadimplente = false;
       if (mesReferenciaDate && dataVencimentoColumn) {
@@ -323,7 +305,7 @@ export default function Report() {
     });
 
     console.log(`📊 Total inadimplentes calculado: ${totalInadimplentes}`);
-    console.log(`📊 Mês referência usado: ${reportData?.filters.mesReferencia}`);
+    console.log(`📊 Mês referência usado: ${filters.mesReferencia}`);
     console.log(`📊 Data limite para inadimplência: ${mesReferenciaDate?.toLocaleDateString('pt-BR')}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });

@@ -42,7 +42,7 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       sede = 'Fátima';
     }
 
-    let metodoPagamento: 'Cartão' | 'PIX' | null = null;
+    let metodoPagamento: 'Cartão de Crédito' | 'PIX' | null = null;
     
     if (row["Método de pagamento"].includes('Cartão')) {
       metodoPagamento = 'Cartão de Crédito';

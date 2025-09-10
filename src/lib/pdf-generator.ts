@@ -85,6 +85,9 @@ export const generatePDF = async (
     
     const totalGeral = totalRecebidoMensal + consolidado.totalEmAberto + valorTotalPlanos + (consolidado.totalInadimplentes || 0);
 
+    const totalDistribuicao = totalGeral - consolidado.totalEmAberto
+
+    
     // PLANOS MENSAIS
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -132,10 +135,10 @@ export const generatePDF = async (
     // INADIMPLENTES RECEBIMENTOS
     if (consolidado.totalInadimplentes > 0) {
       doc.setFontSize(14);
-      doc.setTextColor(0, 100, 0); // verde escuro
+      doc.setTextColor(255, 0, 0); // vermelho
       doc.setFont('helvetica', 'bold');
       doc.text(`Inadimplentes Recebimentos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
-      yPosition += 15;
+      yPosition += 10;
     }
 
     // VALOR EM ABERTO
@@ -145,9 +148,16 @@ export const generatePDF = async (
     doc.text(`Valor em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
     yPosition += 15;
 
+    // TOTAL DISTRIBUÇÃO - destacado
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 128); // Azul escuro
+    doc.text(`Total Distribuição: ${formatCurrencyForPDF(totalDistribuicao)}`, 20, yPosition);
+    doc.setTextColor(0, 0, 0); // Volta para preto
+    yPosition += 10;
 
     // TOTAL GERAL - destacado
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 128); // Azul escuro
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);

@@ -74,7 +74,6 @@ export default function Report() {
   const [showPdfSettings, setShowPdfSettings] = useState(false);
   const [activePlans, setActivePlans] = useState<SubscriptionPlan[]>([]);
   const [dataWithoutPlans, setDataWithoutPlans] = useState<Record<string, any>[]>([]);
-  const [inadimplentesList, setInadimplentesList] = useState<Record<string, any>[]>([]);
 
   useEffect(() => {
     const data = location.state as ReportData;
@@ -156,8 +155,7 @@ export default function Report() {
       
       setActivePlans(allPlans);
 
-      // Separar inadimplentes e filtrar dados removendo planos de assinatura e inadimplentes
-      const inadimplentesList: Record<string, any>[] = [];
+      // Filtrar dados removendo os que são planos de assinatura e inadimplentes
       const dataWithoutPlans = filteredData.filter(row => {
         // Verifica se este registro é um plano de assinatura
         const rowText = Object.entries(row)
@@ -190,8 +188,6 @@ export default function Report() {
               // Inadimplente: data de vencimento anterior ao mês de referência
               if (dataVencimento && dataVencimento < mesReferenciaDate) {
                 isInadimplente = true;
-                // Adicionar à lista de inadimplentes
-                inadimplentesList.push(row);
               }
             }
           }
@@ -201,7 +197,6 @@ export default function Report() {
       });
       
       setDataWithoutPlans(dataWithoutPlans);
-      setInadimplentesList(inadimplentesList);
       
       // Inicializar colunas selecionadas com base nos dados sem planos
       if (dataWithoutPlans.length > 0) {
@@ -714,7 +709,7 @@ debugger
           </CardContent>
         </Card>
 
-        {/* Inadimplentes Recebimentos */}
+        {/* Inadimplentes Recebidos */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -997,40 +992,59 @@ debugger
         </Card>
       )}
 
-      {/* Tabela de Inadimplentes */}
-      {inadimplentesList.length > 0 && (
+
+      {/* Planos de Assinatura Ativos */}
+      {activePlans.length > 0 && (
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Tabela de Inadimplentes ({inadimplentesList.length} registros)</CardTitle>
-            <p className="text-muted-foreground">
-              Registros que compõem o valor de "Inadimplentes Recebidos" - vencimento anterior ao mês de referência
-            </p>
+            <CardTitle>Planos de Assinatura Ativos no Período</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-50">
-                    {inadimplentesList.length > 0 && Object.keys(inadimplentesList[0]).map((column) => (
-                      <th key={column} className="border border-gray-300 p-2 text-left font-medium">
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody> 
-                  {inadimplentesList.map((row, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      {Object.entries(row).map(([column, value], cellIndex) => (
-                        <td key={cellIndex} className="border border-gray-300 p-2">
-                          {formatCellValue(value, column)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">                
+                <div className="p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-indigo-600">
+                    {formatCurrency(activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                </div>
+              </div>
             </div>
+
+              {/* Tabela de Inadimplentes */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 p-2 text-left font-medium">Cliente</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Vencimento</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Recebimento</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody> 
+                    {activePlans.map((plan, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 p-2">
+                          {plan.nome_cliente || 'Não informado'}
+                        </td>
+                        <td className="border border-gray-300 p-2">
+                          {plan.data_vencimento.toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="border border-gray-300 p-2">
+                          {plan.data_vencimento.toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="border border-gray-300 p-2">
+                          {formatCurrency(plan.valor)}
+                        </td>
+                          <td className="border border-gray-300 p-2">
+                          {plan.metodoPagamento || 'Não identificado'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
           </CardContent>
         </Card>
       )}

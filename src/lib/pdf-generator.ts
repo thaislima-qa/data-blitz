@@ -132,12 +132,12 @@ export const generatePDF = async (
       });
     yPosition += 8;
 
-    // INADIMPLENTES RECEBIDOS
+    // INADIMPLENTES RECEBIMENTOS
     if (consolidado.totalInadimplentes > 0) {
       doc.setFontSize(14);
       doc.setTextColor(255, 0, 0); // vermelho
       doc.setFont('helvetica', 'bold');
-      doc.text(`Inadimplentes Recebidos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
+      doc.text(`Inadimplentes Recebimentos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
       yPosition += 10;
     }
 
@@ -214,11 +214,12 @@ export const generatePDF = async (
       plan.nome_cliente || 'Não informado',
       plan.data_vencimento.toLocaleDateString('pt-BR'),
       `${plan.data_inicio} a ${plan.data_fim}`,
-      formatCurrencyForPDF(plan.valor)
+      formatCurrencyForPDF(plan.valor),
+      plan.metodoPagamento || 'Não especificado'
     ]);
 
     autoTable(doc, {
-      head: [['Tipo', 'Cliente', 'Vencimento', 'Período', 'Valor']],
+      head: [['Tipo', 'Cliente', 'Vencimento', 'Período', 'Valor', 'Método de pagamento']],
       body: plansTableData,
       startY: yPosition,
       margin: { left: 20, right: 20 },

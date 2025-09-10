@@ -159,11 +159,10 @@ export const generatePDF = async (
     // TOTAL DISTRIBUÇÃO - destacado
     doc.setFontSize(14);
     doc.setFont('helvetica', 'italic');
-    doc.setTextColor(0, 0, 128); // Azul escuro
+    doc.setTextColor(0, 0, 0); // Volta para preto
     doc.text(`Total Distribuição: ${formatCurrencyForPDF(totalDistribuicao)}*`, 20, yPosition);
     doc.setFontSize(8);
-    doc.text(`*Valor antes da dedução dos impostos`, 20, yPosition);
-    doc.setTextColor(0, 0, 0); // Volta para preto
+    doc.text(`*Valor antes da dedução dos impostos`, 25, yPosition);
     yPosition += 15;
 
        

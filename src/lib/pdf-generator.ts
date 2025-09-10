@@ -272,7 +272,7 @@ export const generatePDF = async (
       yPosition += 15;
 
       // Tabela de inadimplentes
-      const inadimplentesCols = Object.keys(inadimplentesList[0]);
+      const inadimplentesCols = Object.keys(inadimplentesList[0]).filter(col => col.toLowerCase() !== 'consultor');
       const inadimplentesRows = inadimplentesList.map(row => 
         inadimplentesCols.map(col => formatCellForPDF(row[col], col))
       );

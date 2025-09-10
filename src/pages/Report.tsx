@@ -1012,7 +1012,7 @@ debugger
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-50">
-                    {inadimplentesList.length > 0 && Object.keys(inadimplentesList[0]).map((column) => (
+                    {inadimplentesList.length > 0 && Object.keys(inadimplentesList[0]).filter(column => column.toLowerCase() !== 'consultor').map((column) => (
                       <th key={column} className="border border-gray-300 p-2 text-left font-medium">
                         {column}
                       </th>
@@ -1022,7 +1022,7 @@ debugger
                 <tbody> 
                   {inadimplentesList.map((row, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                      {Object.entries(row).map(([column, value], cellIndex) => (
+                      {Object.entries(row).filter(([column]) => column.toLowerCase() !== 'consultor').map(([column, value], cellIndex) => (
                         <td key={cellIndex} className="border border-gray-300 p-2">
                           {formatCellValue(value, column)}
                         </td>

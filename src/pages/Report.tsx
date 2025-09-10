@@ -443,7 +443,8 @@ debugger
         activePlans, // Incluir planos ativos
         alunosAtivos, // Incluir dados de alunos ativos
         filters.sede || 'Sede não especificada', // Sede
-        periodoTexto || 'Período não especificado' // Período MM/AAAA
+        periodoTexto || 'Período não especificado', // Período MM/AAAA
+        inadimplentesList // Incluir lista de inadimplentes
       );
       toast.success("PDF gerado com sucesso!");
     } catch (error) {

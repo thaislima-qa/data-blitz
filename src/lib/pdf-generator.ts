@@ -21,7 +21,8 @@ export const generatePDF = async (
     inadimplentes: number;
   },
   sede?: string,
-  periodo?: string
+  periodo?: string,
+  inadimplentesList?: Record<string, any>[]
 ) => {
   if (!data.length) return;
 
@@ -262,6 +263,46 @@ export const generatePDF = async (
     // >>> Forçar nova página para iniciar DADOS DETALHADOS
     doc.addPage();
     yPosition = 20;
+
+    // Adicionar Tabela de Inadimplentes se existir
+    if (inadimplentesList && inadimplentesList.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Tabela de Inadimplentes', 20, yPosition);
+      yPosition += 15;
+
+      // Tabela de inadimplentes
+      const inadimplentesCols = Object.keys(inadimplentesList[0]);
+      const inadimplentesRows = inadimplentesList.map(row => 
+        inadimplentesCols.map(col => formatCellForPDF(row[col], col))
+      );
+
+      autoTable(doc, {
+        head: [inadimplentesCols],
+        body: inadimplentesRows,
+        startY: yPosition,
+        margin: { left: 20, right: 20 },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [220, 53, 69], // Red
+          textColor: 255,
+          fontSize: 9,
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [255, 242, 242], // Light red
+        },
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 20;
+
+      // Linha separadora
+      doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
+      yPosition += 15;
+    }
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');

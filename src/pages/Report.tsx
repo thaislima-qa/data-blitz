@@ -81,7 +81,7 @@ export default function Report() {
       navigate('/');
       return;
     }
-    
+  
     setReportData(data);
     
     // Processar planos de assinatura e remover dos dados filtrados
@@ -205,15 +205,15 @@ export default function Report() {
       }
       
       // Calcular consolidado apenas com dados que não são planos
-      calculateConsolidado(dataWithoutPlans, filters);
+      calculateConsolidado(filteredData, filters);
       
     } catch (error) {
       console.error('Erro ao processar planos de assinatura:', error);
       toast.error('Erro ao processar planos de assinatura');
       
       // Em caso de erro, usar os dados originais
-      setDataWithoutPlans(filteredData);
-      calculateConsolidado(filteredData, filters);
+     // setDataWithoutPlans(filteredData);
+      //calculateConsolidado(filteredData, filters);
     }
   };
 
@@ -714,7 +714,7 @@ debugger
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Inadimplentes Recebimentos
+              Inadimplentes Recebidos
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -988,6 +988,63 @@ debugger
                 </table>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+      {/* Planos de Assinatura Ativos */}
+      {activePlans.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Planos de Assinatura Ativos no Período</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">                
+                <div className="p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-indigo-600">
+                    {formatCurrency(activePlans.reduce((sum, plan) => sum + (plan.valor || 0), 0))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Valor Total</p>
+                </div>
+              </div>
+            </div>
+
+              {/* Tabela de Planos */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 p-2 text-left font-medium">Cliente</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Vencimento</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Recebimento</th>
+                      <th className="border border-gray-300 p-2 text-left font-medium">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody> 
+                    {activePlans.map((plan, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 p-2">
+                          {plan.nome_cliente || 'Não informado'}
+                        </td>
+                        <td className="border border-gray-300 p-2">
+                          {plan.data_vencimento.toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="border border-gray-300 p-2">
+                          {plan.data_vencimento.toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="border border-gray-300 p-2">
+                          {formatCurrency(plan.valor)}
+                        </td>
+                          <td className="border border-gray-300 p-2">
+                          {plan.metodoPagamento || 'Não identificado'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
           </CardContent>
         </Card>
       )}

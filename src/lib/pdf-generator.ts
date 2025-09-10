@@ -148,22 +148,25 @@ export const generatePDF = async (
     doc.text(`Valor em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
     yPosition += 15;
 
-    // TOTAL DISTRIBUÇÃO - destacado
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 128); // Azul escuro
-    doc.text(`Total Distribuição: ${formatCurrencyForPDF(totalDistribuicao)}`, 20, yPosition);
-    doc.setTextColor(0, 0, 0); // Volta para preto
-    yPosition += 10;
-
     // TOTAL GERAL - destacado
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 128); // Azul escuro
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
     doc.setTextColor(0, 0, 0); // Volta para preto
-    yPosition += 10;
+    yPosition += 10;    
     
+    // TOTAL DISTRIBUÇÃO - destacado
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(0, 0, 128); // Azul escuro
+    doc.text(`Total Distribuição: ${formatCurrencyForPDF(totalDistribuicao)}*`, 20, yPosition);
+    doc.setFontSize(8);
+    doc.text(`*Valor antes da dedução dos impostos`, 20, yPosition);
+    doc.setTextColor(0, 0, 0); // Volta para preto
+    yPosition += 15;
+
+       
     // Linha separadora
     const pageWidth = doc.internal.pageSize.width;
     doc.setLineWidth(2);

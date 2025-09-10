@@ -163,7 +163,7 @@ export const generatePDF = async (
     doc.text(`Total Distribuição: ${formatCurrencyForPDF(totalDistribuicao)}*`, 20, yPosition);
     yPosition += 5;
     doc.setFontSize(8);
-    doc.text(`*Valor antes da dedução dos impostos`, 25, yPosition);
+    doc.text(`*Valor antes da dedução dos impostos`, 20, yPosition);
     yPosition += 15;
 
        

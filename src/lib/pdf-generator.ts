@@ -85,9 +85,6 @@ export const generatePDF = async (
     
     const totalGeral = totalRecebidoMensal + consolidado.totalEmAberto + valorTotalPlanos + (consolidado.totalInadimplentes || 0);
 
-    const totalDistribuicao = totalGeral - consolidado.totalEmAberto
-
-    
     // PLANOS MENSAIS
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -138,7 +135,7 @@ export const generatePDF = async (
       doc.setTextColor(255, 0, 0); // vermelho
       doc.setFont('helvetica', 'bold');
       doc.text(`Inadimplentes Recebimentos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
-      yPosition += 10;
+      yPosition += 15;
     }
 
     // VALOR EM ABERTO
@@ -148,25 +145,15 @@ export const generatePDF = async (
     doc.text(`Valor em Aberto: ${formatCurrencyForPDF(consolidado.totalEmAberto)}`, 20, yPosition);
     yPosition += 15;
 
+
     // TOTAL GERAL - destacado
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 128); // Azul escuro
     doc.text(`Total Geral: ${formatCurrencyForPDF(totalGeral)}`, 20, yPosition);
     doc.setTextColor(0, 0, 0); // Volta para preto
-    yPosition += 10;    
+    yPosition += 10;
     
-    // TOTAL DISTRIBUÇÃO - destacado
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(0, 0, 0); // Volta para preto
-    doc.text(`Total Distribuição: ${formatCurrencyForPDF(totalDistribuicao)}*`, 20, yPosition);
-    yPosition += 5;
-    doc.setFontSize(8);
-    doc.text(`*Valor antes da dedução dos impostos`, 20, yPosition);
-    yPosition += 15;
-
-       
     // Linha separadora
     const pageWidth = doc.internal.pageSize.width;
     doc.setLineWidth(2);
@@ -214,12 +201,11 @@ export const generatePDF = async (
       plan.nome_cliente || 'Não informado',
       plan.data_vencimento.toLocaleDateString('pt-BR'),
       `${plan.data_inicio} a ${plan.data_fim}`,
-      formatCurrencyForPDF(plan.valor),
-      plan.metodoPagamento || 'Não especificado'
+      formatCurrencyForPDF(plan.valor)
     ]);
 
     autoTable(doc, {
-      head: [['Tipo', 'Cliente', 'Vencimento', 'Período', 'Valor', 'Método de pagamento']],
+      head: [['Tipo', 'Cliente', 'Vencimento', 'Período', 'Valor']],
       body: plansTableData,
       startY: yPosition,
       margin: { left: 20, right: 20 },

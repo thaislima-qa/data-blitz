@@ -1011,7 +1011,7 @@ debugger
               </div>
             </div>
 
-              {/* Tabela de Planos */}
+              {/* Tabela de Inadimplentes */}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>

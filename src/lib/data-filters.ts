@@ -132,7 +132,7 @@ export const applyFilters = (
       const descricao = String(descricaoValue).toLowerCase();
       
       if (filters.tipo === 'Contrato/Serviço') {
-        return descricao.includes('mensal');
+        return descricao.includes('plano');
       } else if (filters.tipo === 'Produto') {
         return descricao.includes('camisa') || descricao.includes('regata');
       }

@@ -268,7 +268,7 @@ export const generatePDF = async (
     if (inadimplentesList && inadimplentesList.length > 0) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Tabela de Inadimplentes', 20, yPosition);
+      doc.text('Inadimplentes Recebidos', 20, yPosition);
       yPosition += 15;
 
       // Tabela de inadimplentes
@@ -299,10 +299,11 @@ export const generatePDF = async (
 
       yPosition = (doc as any).lastAutoTable.finalY + 20;
 
-      // Linha separadora
-      doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
-      yPosition += 15;
     }
+    
+    // >>> Forçar nova página para iniciar DADOS DETALHADOS
+    doc.addPage();
+    yPosition = 20;
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');

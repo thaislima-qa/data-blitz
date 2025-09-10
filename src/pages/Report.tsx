@@ -170,9 +170,8 @@ export default function Report() {
         if (filters.mesReferencia) {
           const [mes, ano] = filters.mesReferencia.split('/');
           if (mes && ano) {
-            // Definir período do mês de referência
-            const inicioMesReferencia = new Date(parseInt(ano), parseInt(mes) - 1, 1);
-            const fimMesReferencia = new Date(parseInt(ano), parseInt(mes), 0); // Último dia do mês
+            // Data limite: primeiro dia do mês de referência
+            const mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
             
             // Procurar coluna de data de vencimento
             const columns = Object.keys(row);
@@ -182,24 +181,12 @@ export default function Report() {
               col.toLowerCase().includes('data') && col.toLowerCase().includes('venc')
             );
             
-            // Procurar coluna de data de recebimento
-            const dataRecebimentoColumn = columns.find(col => 
-              col.toLowerCase().includes('recebimento') || 
-              col.toLowerCase().includes('receb') ||
-              col.toLowerCase().includes('received') ||
-              col.toLowerCase().includes('pagamento') && !col.toLowerCase().includes('método')
-            );
-            
             if (dataVencimentoColumn) {
               const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
               const dataVencimento = parseDate(dataVencimentoStr);
-              const dataRecebimento = row[dataRecebimentoColumn || ''];
               
-              // Remove apenas inadimplentes (sem recebimento) que têm vencimento dentro do período do mês de referência
-              if (dataVencimento && 
-                  dataVencimento >= inicioMesReferencia && 
-                  dataVencimento <= fimMesReferencia &&
-                  (!dataRecebimento || String(dataRecebimento).trim() === '')) {
+              // Inadimplente: data de vencimento anterior ao mês de referência
+              if (dataVencimento && dataVencimento < mesReferenciaDate) {
                 isInadimplente = true;
               }
             }

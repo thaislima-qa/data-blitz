@@ -129,12 +129,12 @@ export const generatePDF = async (
       });
     yPosition += 8;
 
-    // INADIMPLENTES RECEBIDOS
+    // INADIMPLENTES RECEBIMENTOS
     if (consolidado.totalInadimplentes > 0) {
       doc.setFontSize(14);
-      doc.setTextColor(255, 0, 0); // vermelho
+      doc.setTextColor(0, 100, 0); // verde escuro
       doc.setFont('helvetica', 'bold');
-      doc.text(`Inadimplentes Recebidos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
+      doc.text(`Inadimplentes Recebimentos: ${formatCurrencyForPDF(consolidado.totalInadimplentes)}`, 20, yPosition);
       yPosition += 15;
     }
 

@@ -513,7 +513,9 @@ debugger
   if (!reportData || !consolidado) {
     return <div>Carregando...</div>;
   }
-  const { filters } = reportData;
+  
+  // Verificar se filters existe antes de tentar usá-lo
+  const filters = reportData.filters || {};
   const activeFilters = Object.entries(filters).filter(([_, value]) => value).length;
 
   

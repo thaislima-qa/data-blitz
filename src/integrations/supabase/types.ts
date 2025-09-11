@@ -63,12 +63,12 @@ export type Database = {
           data_inicio: string
           data_vencimento: string
           id: string
+          metodoPagamento: string | null
           nome_cliente: string | null
+          sede: string | null
           tipo_plano: string
           updated_at: string
           valor: number | null
-          sede: string | null
-          metodoPagamento: string | null
         }
         Insert: {
           created_at?: string
@@ -76,12 +76,12 @@ export type Database = {
           data_inicio: string
           data_vencimento: string
           id?: string
+          metodoPagamento?: string | null
           nome_cliente?: string | null
+          sede?: string | null
           tipo_plano: string
           updated_at?: string
           valor?: number | null
-          sede: string | null
-          metodoPagamento: string | null
         }
         Update: {
           created_at?: string
@@ -89,12 +89,12 @@ export type Database = {
           data_inicio?: string
           data_vencimento?: string
           id?: string
+          metodoPagamento?: string | null
           nome_cliente?: string | null
+          sede?: string | null
           tipo_plano?: string
           updated_at?: string
           valor?: number | null
-          sede: string | null
-          metodoPagamento: string | null
         }
         Relationships: []
       }

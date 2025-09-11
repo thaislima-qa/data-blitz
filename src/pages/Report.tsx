@@ -468,7 +468,7 @@ debugger
         
         // Se temos múltiplos filtros, adicionar essa informação ao título
         if (reportData.multipleFilters.length > 1) {
-          periodoTexto = `${periodoTexto} (${reportData.multipleFilters.length} filtros combinados)`;
+          periodoTexto = `${periodoTexto}`;
         }
       }
 

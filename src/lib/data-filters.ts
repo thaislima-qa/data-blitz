@@ -1,5 +1,49 @@
 import { FilterState } from "@/components/ui/data-filters";
+import { MultipleFilter } from "@/components/ui/multiple-filters";
 import { parse, isWithinInterval, isValid, startOfDay, endOfDay, isSameDay, isAfter, isBefore } from "date-fns";
+
+// Função para combinar múltiplos filtros (operação OU)
+export const applyCombinedFilters = (
+  data: Record<string, any>[],
+  multipleFilters: MultipleFilter[]
+): Record<string, any>[] => {
+  if (!multipleFilters.length) return data;
+  
+  // Aplicar cada filtro separadamente e combinar resultados
+  const combinedResults = new Set<Record<string, any>>();
+  
+  multipleFilters.forEach(multipleFilter => {
+    const filteredData = applyFilters(data, multipleFilter.filters);
+    filteredData.forEach(item => combinedResults.add(item));
+  });
+  
+  return Array.from(combinedResults);
+};
+
+// Função para obter resumo dos filtros combinados
+export const getCombinedFilterSummary = (
+  originalData: Record<string, any>[],
+  filteredData: Record<string, any>[],
+  multipleFilters: MultipleFilter[]
+): {
+  total: number;
+  filtered: number;
+  filtersCount: number;
+  totalCriteria: number;
+  filterNames: string[];
+} => {
+  const totalCriteria = multipleFilters.reduce((total, mf) => {
+    return total + Object.values(mf.filters).filter(Boolean).length;
+  }, 0);
+
+  return {
+    total: originalData.length,
+    filtered: filteredData.length,
+    filtersCount: multipleFilters.length,
+    totalCriteria,
+    filterNames: multipleFilters.map(mf => mf.name),
+  };
+};
 
 export const applyFilters = (
   data: Record<string, any>[],

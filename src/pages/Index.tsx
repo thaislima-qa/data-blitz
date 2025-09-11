@@ -4,20 +4,30 @@ import { processCSVFile } from "@/lib/csv-processor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/ui/file-upload";
-import { Upload, FileText } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, FileText, Filter, Combine } from "lucide-react";
 import { toast } from "sonner";
 import { DataFilters, FilterState } from "@/components/ui/data-filters";
-import { applyFilters, getFilterSummary } from "@/lib/data-filters";
+import { MultipleFilters, MultipleFilter } from "@/components/ui/multiple-filters";
+import { applyFilters, getFilterSummary, applyCombinedFilters, getCombinedFilterSummary } from "@/lib/data-filters";
 import { identifySubscriptionPlans, saveSubscriptionPlans } from "@/lib/subscription-plans";
 
 export default function Index() {
   const navigate = useNavigate();
   const [csvData, setCsvData] = useState<Record<string, any>[]>([]);
   const [filters, setFilters] = useState<FilterState>({});
+  const [multipleFilters, setMultipleFilters] = useState<MultipleFilter[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [filterMode, setFilterMode] = useState<'simple' | 'combined'>('simple');
 
-  const filteredData = applyFilters(csvData, filters);
-  const filterSummary = getFilterSummary(csvData, filteredData, filters);
+  // Aplicar filtros baseado no modo selecionado
+  const filteredData = filterMode === 'simple' 
+    ? applyFilters(csvData, filters)
+    : applyCombinedFilters(csvData, multipleFilters);
+    
+  const filterSummary = filterMode === 'simple'
+    ? getFilterSummary(csvData, filteredData, filters)
+    : getCombinedFilterSummary(csvData, filteredData, multipleFilters);
 
   const handleFileUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -58,13 +68,22 @@ export default function Index() {
       return;
     }
 
-    navigate('/report', {
-      state: {
-        filteredData,
-        originalData: csvData,
-        filters
-      }
-    });
+    // Preparar dados para o relatório baseado no modo de filtro
+    const reportState = filterMode === 'simple' 
+      ? {
+          filteredData,
+          originalData: csvData,
+          filters,
+          filterMode: 'simple' as const
+        }
+      : {
+          filteredData,
+          originalData: csvData,
+          multipleFilters,
+          filterMode: 'combined' as const
+        };
+
+    navigate('/report', { state: reportState });
   };
 
   return (
@@ -109,12 +128,38 @@ export default function Index() {
 
         {/* Filters Section */}
         {csvData.length > 0 && (
-          <DataFilters
-            data={csvData}
-            filters={filters}
-            onFiltersChange={setFilters}
-            className="mb-8 shadow-lg border-0 bg-card/50 backdrop-blur-sm"
-          />
+          <Card className="mb-8 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <Tabs value={filterMode} onValueChange={(value) => setFilterMode(value as 'simple' | 'combined')}>
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="simple" className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtro Simples
+                  </TabsTrigger>
+                  <TabsTrigger value="combined" className="flex items-center gap-2">
+                    <Combine className="h-4 w-4" />
+                    Filtros Combinados
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="simple" className="mt-0">
+                  <DataFilters
+                    data={csvData}
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="combined" className="mt-0">
+                  <MultipleFilters
+                    data={csvData}
+                    multipleFilters={multipleFilters}
+                    onMultipleFiltersChange={setMultipleFilters}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         )}
 
         {/* Results Summary and Generate Report Button */}
@@ -128,16 +173,22 @@ export default function Index() {
                 <div className="space-y-2">
                   <p className="text-lg">
                     <strong>{filterSummary.filtered}</strong> registros 
-                    {filterSummary.filtersApplied > 0 && (
-                      <span className="text-muted-foreground">
-                        {" "}de {filterSummary.total} total
-                      </span>
-                    )}
+                    <span className="text-muted-foreground">
+                      {" "}de {filterSummary.total} total
+                    </span>
                   </p>
-                  {filterSummary.filtersApplied > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Filtros ativos: {filterSummary.activeFilters.join(', ')}
-                    </p>
+                  {filterMode === 'simple' ? (
+                    'filtersApplied' in filterSummary && filterSummary.filtersApplied > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Filtros ativos: {(filterSummary as any).activeFilters.join(', ')}
+                      </p>
+                    )
+                  ) : (
+                    'filtersCount' in filterSummary && filterSummary.filtersCount > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {filterSummary.filtersCount} filtro{filterSummary.filtersCount > 1 ? 's' : ''} combinado{filterSummary.filtersCount > 1 ? 's' : ''} ({filterSummary.totalCriteria} critério{filterSummary.totalCriteria > 1 ? 's' : ''})
+                      </p>
+                    )
                   )}
                 </div>
                 

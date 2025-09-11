@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Download, FileText, Settings } from "lucide-react";
 import { FilterState } from "@/components/ui/data-filters";
+import { MultipleFilter } from "@/components/ui/multiple-filters";
 import { applyFilters } from "@/lib/data-filters";
 import { generatePDF } from "@/lib/pdf-generator";
 import { toast } from "sonner";
@@ -57,7 +58,9 @@ const formatCellValue = (value: any, columnName: string): string => {
 interface ReportData {
   filteredData: Record<string, any>[];
   originalData: Record<string, any>[];
-  filters: FilterState;
+  filterMode: 'simple' | 'combined';
+  filters?: FilterState;
+  multipleFilters?: MultipleFilter[];
 }
 
 export default function Report() {
@@ -85,8 +88,15 @@ export default function Report() {
   
     setReportData(data);
     
-    // Processar planos de assinatura e remover dos dados filtrados
-    processSubscriptionPlans(data.filteredData, data.filters);
+    // Processar planos de assinatura baseado no tipo de filtro
+    if (data.filterMode === 'simple' && data.filters) {
+      processSubscriptionPlans(data.filteredData, data.filters);
+    } else if (data.filterMode === 'combined' && data.multipleFilters) {
+      // Para filtros combinados, usar o primeiro filtro com mês referência ou criar um filtro vazio
+      const referenceFilter = data.multipleFilters.find(mf => mf.filters.mesReferencia) || 
+                             { filters: {} as FilterState };
+      processSubscriptionPlans(data.filteredData, referenceFilter.filters);
+    }
   }, [location.state, navigate]);
 
   const processSubscriptionPlans = async (filteredData: Record<string, any>[], filters: FilterState) => {
@@ -422,15 +432,44 @@ debugger
         inadimplentes: clientesInadimplentes.size
       };
 
-      // Determinar mês/ano para o título
+      // Determinar mês/ano para o título baseado no tipo de filtro
       let periodoTexto = '';
-      if (filters.mesReferencia) {
-        periodoTexto = filters.mesReferencia;
-      } else if (filters.dataVencimento?.from) {
-        const dataVenc = new Date(filters.dataVencimento.from);
-        const mes = dataVenc.toLocaleDateString('pt-BR', { month: '2-digit' });
-        const ano = dataVenc.getFullYear();
-        periodoTexto = `${mes}/${ano}`;
+      let sedeTexto = 'Sede não especificada';
+      
+      if (reportData.filterMode === 'simple' && reportData.filters) {
+        const filters = reportData.filters;
+        if (filters.mesReferencia) {
+          periodoTexto = filters.mesReferencia;
+        } else if (filters.dataVencimento?.from) {
+          const dataVenc = new Date(filters.dataVencimento.from);
+          const mes = dataVenc.toLocaleDateString('pt-BR', { month: '2-digit' });
+          const ano = dataVenc.getFullYear();
+          periodoTexto = `${mes}/${ano}`;
+        }
+        sedeTexto = filters.sede || 'Sede não especificada';
+      } else if (reportData.filterMode === 'combined' && reportData.multipleFilters) {
+        // Para filtros combinados, usar informações do primeiro filtro com dados relevantes
+        const firstFilterWithRef = reportData.multipleFilters.find(mf => mf.filters.mesReferencia);
+        const firstFilterWithVenc = reportData.multipleFilters.find(mf => mf.filters.dataVencimento?.from);
+        const firstFilterWithSede = reportData.multipleFilters.find(mf => mf.filters.sede);
+        
+        if (firstFilterWithRef) {
+          periodoTexto = firstFilterWithRef.filters.mesReferencia!;
+        } else if (firstFilterWithVenc) {
+          const dataVenc = new Date(firstFilterWithVenc.filters.dataVencimento!.from!);
+          const mes = dataVenc.toLocaleDateString('pt-BR', { month: '2-digit' });
+          const ano = dataVenc.getFullYear();
+          periodoTexto = `${mes}/${ano}`;
+        }
+        
+        if (firstFilterWithSede) {
+          sedeTexto = firstFilterWithSede.filters.sede!;
+        }
+        
+        // Se temos múltiplos filtros, adicionar essa informação ao título
+        if (reportData.multipleFilters.length > 1) {
+          periodoTexto = `${periodoTexto} (${reportData.multipleFilters.length} filtros combinados)`;
+        }
       }
 
       await generatePDF(
@@ -442,7 +481,7 @@ debugger
         pdfOrientation,
         activePlans, // Incluir planos ativos
         alunosAtivos, // Incluir dados de alunos ativos
-        filters.sede || 'Sede não especificada', // Sede
+        sedeTexto, // Sede
         periodoTexto || 'Período não especificado', // Período MM/AAAA
         inadimplentesList // Incluir lista de inadimplentes
       );

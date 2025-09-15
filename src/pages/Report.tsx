@@ -283,6 +283,16 @@ debugger
     }
 debugger
     data.forEach(row => {
+      // Ignorar linhas que são planos de assinatura (trimestral/semestral)
+      const rowText = Object.entries(row)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(' ')
+        .toLowerCase();
+      const isSubscriptionPlan = rowText.includes('trimestral') || rowText.includes('semestral');
+      if (isSubscriptionPlan) {
+        return; // não contabiliza em mensalidades nem inadimplentes
+      }
+
       // Melhor parsing de valores monetários
       const valorStr = String(row[valorColumn || ''] || '0');
       const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;

@@ -219,8 +219,8 @@ export default function Report() {
         setSelectedColumns(columns);
       }
       
-      // Calcular consolidado apenas com dados que não são planos
-      calculateConsolidado(filteredData, filters);
+      // Calcular consolidado apenas com dados sem planos e sem inadimplentes
+      calculateConsolidado(dataWithoutPlans, filters, inadimplentesList);
       
     } catch (error) {
       console.error('Erro ao processar planos de assinatura:', error);
@@ -234,7 +234,7 @@ export default function Report() {
 
 
 
-  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState) => {
+  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState, inadimplentesList: Record<string, any>[]) => {
     if (!data.length) return;
 
     const columns = Object.keys(data[0]);
@@ -272,26 +272,10 @@ export default function Report() {
     const totalRecebidoPorForma: Record<string, number> = {};
     let totalEmAberto = 0;
     let totalInadimplentes = 0;
-debugger
-    // Obter mês de referência para comparação
-    let mesReferenciaDate: Date | null = null;
-    if (filters.mesReferencia) {
-      const [mes, ano] = filters.mesReferencia.split('/');
-      if (mes && ano) {
-        mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
-      }
-    }
-debugger
+
     data.forEach(row => {
-      // Ignorar linhas que são planos de assinatura (trimestral/semestral)
-      const rowText = Object.entries(row)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(' ')
-        .toLowerCase();
-      const isSubscriptionPlan = rowText.includes('trimestral') || rowText.includes('semestral');
-      if (isSubscriptionPlan) {
-        return; // não contabiliza em mensalidades nem inadimplentes
-      }
+      // Os dados já estão filtrados (sem planos de assinatura e sem inadimplentes)
+      // então não precisamos verificar novamente
 
       // Melhor parsing de valores monetários
       const valorStr = String(row[valorColumn || ''] || '0');
@@ -299,39 +283,30 @@ debugger
       
       const recebimento = row[recebimentoColumn || ''];
       const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
-      debugger
-      // Verificar se é inadimplente baseado no mês de referência
-      let isInadimplente = false;
-      if (mesReferenciaDate && dataVencimentoColumn) {
-        const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
-        const dataVencimento = parseDate(dataVencimentoStr);
-        
-        // Inadimplente: data de vencimento anterior ao mês de referência
-        if (dataVencimento && dataVencimento < mesReferenciaDate) {
-          isInadimplente = true;
-          totalInadimplentes += valor;
-          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor: ${valor}`);
-        }
-      }
       
-      // Se não é inadimplente, contabilizar normalmente
-      if (!isInadimplente) {
-        // Se tem data de recebimento (recebido)
-        if (recebimento && String(recebimento).trim() !== '') {
-          if (!totalRecebidoPorForma[metodoPagamento]) {
-            totalRecebidoPorForma[metodoPagamento] = 0;
-          }
-          totalRecebidoPorForma[metodoPagamento] += valor;
-        } else {
-          // Em aberto
-          totalEmAberto += valor;
+      // Se tem data de recebimento (recebido)
+      if (recebimento && String(recebimento).trim() !== '') {
+        if (!totalRecebidoPorForma[metodoPagamento]) {
+          totalRecebidoPorForma[metodoPagamento] = 0;
         }
+        totalRecebidoPorForma[metodoPagamento] += valor;
+      } else {
+        // Em aberto
+        totalEmAberto += valor;
       }
     });
 
-    console.log(`📊 Total inadimplentes calculado: ${totalInadimplentes}`);
-    console.log(`📊 Mês referência usado: ${filters.mesReferencia}`);
-    console.log(`📊 Data limite para inadimplência: ${mesReferenciaDate?.toLocaleDateString('pt-BR')}`);
+    // Calcular totalInadimplentes a partir da lista de inadimplentes
+    totalInadimplentes = 0;
+    inadimplentesList.forEach(row => {
+      const valorStr = String(row[valorColumn || ''] || '0');
+      const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+      totalInadimplentes += valor;
+    });
+
+    console.log(`📊 Total inadimplentes: ${totalInadimplentes} (${inadimplentesList.length} registros)`);
+    console.log(`📊 Total recebido (dados filtrados): ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0)}`);
+    console.log(`📊 Total em aberto: ${totalEmAberto}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
   };

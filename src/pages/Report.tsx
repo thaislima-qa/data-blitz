@@ -219,8 +219,8 @@ export default function Report() {
         setSelectedColumns(columns);
       }
       
-      // Calcular consolidado com dados sem planos e sem inadimplentes + planos ativos
-      calculateConsolidado(dataWithoutPlans, filters, inadimplentesList, allPlans);
+      // Calcular consolidado apenas com dados sem planos e sem inadimplentes
+      calculateConsolidado(dataWithoutPlans, filters, inadimplentesList);
       
     } catch (error) {
       console.error('Erro ao processar planos de assinatura:', error);
@@ -234,80 +234,78 @@ export default function Report() {
 
 
 
-  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState, inadimplentesList: Record<string, any>[], activePlansList: SubscriptionPlan[]) => {
+  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState, inadimplentesList: Record<string, any>[]) => {
+    if (!data.length) return;
+
+    const columns = Object.keys(data[0]);
+    
+    // Detectar colunas
+    const valorColumn = columns.find(col => 
+      col.toLowerCase().includes('valor') || 
+      col.toLowerCase().includes('amount') ||
+      col.toLowerCase().includes('total') ||
+      col.toLowerCase().includes('preco') ||
+      col.toLowerCase().includes('preço')
+    );
+    
+    const recebimentoColumn = columns.find(col => 
+      col.toLowerCase().includes('recebimento') || 
+      col.toLowerCase().includes('receb') ||
+      col.toLowerCase().includes('received') ||
+      col.toLowerCase().includes('pagamento') && !col.toLowerCase().includes('método')
+    );
+    
+    const metodoPagamentoColumn = columns.find(col => 
+      col.toLowerCase().includes('método') || 
+      col.toLowerCase().includes('metodo') ||
+      col.toLowerCase().includes('forma') ||
+      col.toLowerCase().includes('payment') ||
+      col.toLowerCase().includes('type')
+    );
+
+    const dataVencimentoColumn = columns.find(col => 
+      col.toLowerCase().includes('vencimento') || 
+      col.toLowerCase().includes('due') ||
+      col.toLowerCase().includes('data') && col.toLowerCase().includes('venc')
+    );
+
     const totalRecebidoPorForma: Record<string, number> = {};
     let totalEmAberto = 0;
     let totalInadimplentes = 0;
 
-    // Processar dados mensais
-    if (data.length > 0) {
-      const columns = Object.keys(data[0]);
-      
-      // Detectar colunas
-      const valorColumn = columns.find(col => 
-        col.toLowerCase().includes('valor') || 
-        col.toLowerCase().includes('amount') ||
-        col.toLowerCase().includes('total') ||
-        col.toLowerCase().includes('preco') ||
-        col.toLowerCase().includes('preço')
-      );
-      
-      const recebimentoColumn = columns.find(col => 
-        col.toLowerCase().includes('recebimento') || 
-        col.toLowerCase().includes('receb') ||
-        col.toLowerCase().includes('received') ||
-        col.toLowerCase().includes('pagamento') && !col.toLowerCase().includes('método')
-      );
-      
-      const metodoPagamentoColumn = columns.find(col => 
-        col.toLowerCase().includes('método') || 
-        col.toLowerCase().includes('metodo') ||
-        col.toLowerCase().includes('forma') ||
-        col.toLowerCase().includes('payment') ||
-        col.toLowerCase().includes('type')
-      );
+    data.forEach(row => {
+      // Os dados já estão filtrados (sem planos de assinatura e sem inadimplentes)
+      // então não precisamos verificar novamente
 
-      data.forEach(row => {
-        // Os dados já estão filtrados (sem planos de assinatura e sem inadimplentes)
-        const valorStr = String(row[valorColumn || ''] || '0');
-        const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-        
-        const recebimento = row[recebimentoColumn || ''];
-        const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
-        
-        // Se tem data de recebimento (recebido)
-        if (recebimento && String(recebimento).trim() !== '') {
-          if (!totalRecebidoPorForma[metodoPagamento]) {
-            totalRecebidoPorForma[metodoPagamento] = 0;
-          }
-          totalRecebidoPorForma[metodoPagamento] += valor;
-        } else {
-          // Em aberto
-          totalEmAberto += valor;
+      // Melhor parsing de valores monetários
+      const valorStr = String(row[valorColumn || ''] || '0');
+      const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+      
+      const recebimento = row[recebimentoColumn || ''];
+      const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
+      
+      // Se tem data de recebimento (recebido)
+      if (recebimento && String(recebimento).trim() !== '') {
+        if (!totalRecebidoPorForma[metodoPagamento]) {
+          totalRecebidoPorForma[metodoPagamento] = 0;
         }
-      });
-
-      // Calcular totalInadimplentes a partir da lista de inadimplentes
-      inadimplentesList.forEach(row => {
-        const valorStr = String(row[valorColumn || ''] || '0');
-        const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-        totalInadimplentes += valor;
-      });
-    }
-
-    // Adicionar valores dos planos ativos ao consolidado
-    activePlansList.forEach(plan => {
-      const metodoPagamento = plan.metodoPagamento || 'Não especificado';
-      const valor = plan.valor || 0;
-      
-      if (!totalRecebidoPorForma[metodoPagamento]) {
-        totalRecebidoPorForma[metodoPagamento] = 0;
+        totalRecebidoPorForma[metodoPagamento] += valor;
+      } else {
+        // Em aberto
+        totalEmAberto += valor;
       }
-      totalRecebidoPorForma[metodoPagamento] += valor;
+    });
+
+    // Calcular totalInadimplentes a partir da lista de inadimplentes
+    totalInadimplentes = 0;
+    inadimplentesList.forEach(row => {
+      const valorStr = String(row[valorColumn || ''] || '0');
+      const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+      totalInadimplentes += valor;
     });
 
     console.log(`📊 Total inadimplentes: ${totalInadimplentes} (${inadimplentesList.length} registros)`);
-    console.log(`📊 Total recebido (dados filtrados + planos ativos): ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0)}`);
+    console.log(`📊 Total recebido (dados filtrados): ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0)}`);
     console.log(`📊 Total em aberto: ${totalEmAberto}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
@@ -688,11 +686,8 @@ export default function Report() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Total Recebido por Forma de Pagamento
+              Valores Recebidos por Forma de Pagamento
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Inclui mensalidades e planos de assinatura ativos
-            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {Object.entries(consolidado.totalRecebidoPorForma).length > 0 ? (

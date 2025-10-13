@@ -219,8 +219,8 @@ export default function Report() {
         setSelectedColumns(columns);
       }
       
-      // Calcular consolidado apenas com dados sem planos e sem inadimplentes
-      calculateConsolidado(dataWithoutPlans, filters, inadimplentesList);
+      // Calcular consolidado com dados sem planos, inadimplentes e planos ativos
+      calculateConsolidado(dataWithoutPlans, filters, inadimplentesList, allPlans);
       
     } catch (error) {
       console.error('Erro ao processar planos de assinatura:', error);
@@ -234,7 +234,7 @@ export default function Report() {
 
 
 
-  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState, inadimplentesList: Record<string, any>[]) => {
+  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState, inadimplentesList: Record<string, any>[], activePlansList: SubscriptionPlan[] = []) => {
     if (!data.length) return;
 
     const columns = Object.keys(data[0]);
@@ -296,6 +296,17 @@ export default function Report() {
       }
     });
 
+    // Adicionar valores dos planos de assinatura ativos ao total por forma de pagamento
+    activePlansList.forEach(plan => {
+      const metodoPagamento = plan.metodoPagamento || 'Não especificado';
+      const valor = plan.valor || 0;
+      
+      if (!totalRecebidoPorForma[metodoPagamento]) {
+        totalRecebidoPorForma[metodoPagamento] = 0;
+      }
+      totalRecebidoPorForma[metodoPagamento] += valor;
+    });
+
     // Calcular totalInadimplentes a partir da lista de inadimplentes
     totalInadimplentes = 0;
     inadimplentesList.forEach(row => {
@@ -305,7 +316,9 @@ export default function Report() {
     });
 
     console.log(`📊 Total inadimplentes: ${totalInadimplentes} (${inadimplentesList.length} registros)`);
-    console.log(`📊 Total recebido (dados filtrados): ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0)}`);
+    console.log(`📊 Total recebido mensalidades: ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) - activePlansList.reduce((sum, plan) => sum + (plan.valor || 0), 0)}`);
+    console.log(`📊 Total planos ativos: ${activePlansList.reduce((sum, plan) => sum + (plan.valor || 0), 0)}`);
+    console.log(`📊 Total recebido (consolidado): ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0)}`);
     console.log(`📊 Total em aberto: ${totalEmAberto}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
@@ -686,8 +699,11 @@ export default function Report() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Valores Recebidos por Forma de Pagamento
+              Total Recebido por Forma de Pagamento
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Inclui mensalidades e planos de assinatura ativos
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {Object.entries(consolidado.totalRecebidoPorForma).length > 0 ? (

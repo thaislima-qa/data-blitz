@@ -219,8 +219,8 @@ export default function Report() {
         setSelectedColumns(columns);
       }
       
-      // Calcular consolidado com dados sem planos, inadimplentes e planos ativos
-      calculateConsolidado(dataWithoutPlans, filters, inadimplentesList, allPlans);
+      // Calcular consolidado apenas com dados que não são planos
+      calculateConsolidado(filteredData, filters);
       
     } catch (error) {
       console.error('Erro ao processar planos de assinatura:', error);
@@ -234,7 +234,7 @@ export default function Report() {
 
 
 
-  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState, inadimplentesList: Record<string, any>[], activePlansList: SubscriptionPlan[] = []) => {
+  const calculateConsolidado = (data: Record<string, any>[], filters: FilterState) => {
     if (!data.length) return;
 
     const columns = Object.keys(data[0]);
@@ -272,10 +272,26 @@ export default function Report() {
     const totalRecebidoPorForma: Record<string, number> = {};
     let totalEmAberto = 0;
     let totalInadimplentes = 0;
-
+debugger
+    // Obter mês de referência para comparação
+    let mesReferenciaDate: Date | null = null;
+    if (filters.mesReferencia) {
+      const [mes, ano] = filters.mesReferencia.split('/');
+      if (mes && ano) {
+        mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
+      }
+    }
+debugger
     data.forEach(row => {
-      // Os dados já estão filtrados (sem planos de assinatura e sem inadimplentes)
-      // então não precisamos verificar novamente
+      // Ignorar linhas que são planos de assinatura (trimestral/semestral)
+      const rowText = Object.entries(row)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(' ')
+        .toLowerCase();
+      const isSubscriptionPlan = rowText.includes('trimestral') || rowText.includes('semestral');
+      if (isSubscriptionPlan) {
+        return; // não contabiliza em mensalidades nem inadimplentes
+      }
 
       // Melhor parsing de valores monetários
       const valorStr = String(row[valorColumn || ''] || '0');
@@ -283,43 +299,39 @@ export default function Report() {
       
       const recebimento = row[recebimentoColumn || ''];
       const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
-      
-      // Se tem data de recebimento (recebido)
-      if (recebimento && String(recebimento).trim() !== '') {
-        if (!totalRecebidoPorForma[metodoPagamento]) {
-          totalRecebidoPorForma[metodoPagamento] = 0;
+      debugger
+      // Verificar se é inadimplente baseado no mês de referência
+      let isInadimplente = false;
+      if (mesReferenciaDate && dataVencimentoColumn) {
+        const dataVencimentoStr = String(row[dataVencimentoColumn] || '');
+        const dataVencimento = parseDate(dataVencimentoStr);
+        
+        // Inadimplente: data de vencimento anterior ao mês de referência
+        if (dataVencimento && dataVencimento < mesReferenciaDate) {
+          isInadimplente = true;
+          totalInadimplentes += valor;
+          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor: ${valor}`);
         }
-        totalRecebidoPorForma[metodoPagamento] += valor;
-      } else {
-        // Em aberto
-        totalEmAberto += valor;
       }
-    });
-
-    // Adicionar valores dos planos de assinatura ativos ao total por forma de pagamento
-    activePlansList.forEach(plan => {
-      const metodoPagamento = plan.metodoPagamento || 'Não especificado';
-      const valor = plan.valor || 0;
       
-      if (!totalRecebidoPorForma[metodoPagamento]) {
-        totalRecebidoPorForma[metodoPagamento] = 0;
+      // Se não é inadimplente, contabilizar normalmente
+      if (!isInadimplente) {
+        // Se tem data de recebimento (recebido)
+        if (recebimento && String(recebimento).trim() !== '') {
+          if (!totalRecebidoPorForma[metodoPagamento]) {
+            totalRecebidoPorForma[metodoPagamento] = 0;
+          }
+          totalRecebidoPorForma[metodoPagamento] += valor;
+        } else {
+          // Em aberto
+          totalEmAberto += valor;
+        }
       }
-      totalRecebidoPorForma[metodoPagamento] += valor;
     });
 
-    // Calcular totalInadimplentes a partir da lista de inadimplentes
-    totalInadimplentes = 0;
-    inadimplentesList.forEach(row => {
-      const valorStr = String(row[valorColumn || ''] || '0');
-      const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
-      totalInadimplentes += valor;
-    });
-
-    console.log(`📊 Total inadimplentes: ${totalInadimplentes} (${inadimplentesList.length} registros)`);
-    console.log(`📊 Total recebido mensalidades: ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0) - activePlansList.reduce((sum, plan) => sum + (plan.valor || 0), 0)}`);
-    console.log(`📊 Total planos ativos: ${activePlansList.reduce((sum, plan) => sum + (plan.valor || 0), 0)}`);
-    console.log(`📊 Total recebido (consolidado): ${Object.values(totalRecebidoPorForma).reduce((acc, val) => acc + val, 0)}`);
-    console.log(`📊 Total em aberto: ${totalEmAberto}`);
+    console.log(`📊 Total inadimplentes calculado: ${totalInadimplentes}`);
+    console.log(`📊 Mês referência usado: ${filters.mesReferencia}`);
+    console.log(`📊 Data limite para inadimplência: ${mesReferenciaDate?.toLocaleDateString('pt-BR')}`);
 
     setConsolidado({ totalRecebidoPorForma, totalEmAberto, totalInadimplentes });
   };
@@ -699,11 +711,8 @@ export default function Report() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Total Recebido por Forma de Pagamento
+              Valores Recebidos por Forma de Pagamento
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Inclui mensalidades e planos de assinatura ativos
-            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {Object.entries(consolidado.totalRecebidoPorForma).length > 0 ? (

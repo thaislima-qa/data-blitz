@@ -104,6 +104,7 @@ export const generatePDF = async (
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
     Object.entries(consolidado.totalRecebidoPorForma)
+      .filter(([forma, valor]) => forma.trim() !== '' && valor > 0) // Filtrar vazios e zeros
       .sort(([,a], [,b]) => b - a)
       .forEach(([forma, valor]) => {
         doc.text(`${forma}: ${formatCurrencyForPDF(valor)}`, 30, yPosition); 
@@ -126,6 +127,7 @@ export const generatePDF = async (
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     Object.entries(totaisPorMetodoPagamentoPlanos)
+      .filter(([metodo, valor]) => metodo.trim() !== '' && valor > 0) // Filtrar vazios e zeros
       .sort(([,a], [,b]) => b - a)
       .forEach(([metodo, valor]) => {
         doc.text(`${metodo}: ${formatCurrencyForPDF(valor)}`, 30, yPosition);
@@ -241,20 +243,9 @@ export const generatePDF = async (
 
     yPosition = (doc as any).lastAutoTable.finalY + 20;
 
-    // Garante espaço antes de imprimir o total de alunos
-    {
-      const pageHeight = doc.internal.pageSize.height;
-      const bottomMargin = 20;
-      const requiredHeightForTotals = 35; // título + 2 linhas
-      if (yPosition + requiredHeightForTotals > pageHeight - bottomMargin) {
-        doc.addPage();
-        yPosition = 20;
-      }
-    }
-
-    // Linha separadora
-    doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
-    yPosition += 15;
+    // Forçar nova página para Total de Alunos Ativos (isolado após planos)
+    doc.addPage();
+    yPosition = 20;
 
     // TOTAL DE ALUNOS ATIVOS
     doc.setFontSize(14);

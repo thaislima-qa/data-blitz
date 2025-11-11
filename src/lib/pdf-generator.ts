@@ -241,6 +241,17 @@ export const generatePDF = async (
 
     yPosition = (doc as any).lastAutoTable.finalY + 20;
 
+    // Garante espaço antes de imprimir o total de alunos
+    {
+      const pageHeight = doc.internal.pageSize.height;
+      const bottomMargin = 20;
+      const requiredHeightForTotals = 35; // título + 2 linhas
+      if (yPosition + requiredHeightForTotals > pageHeight - bottomMargin) {
+        doc.addPage();
+        yPosition = 20;
+      }
+    }
+
     // Linha separadora
     doc.line(20, yPosition, doc.internal.pageSize.width - 20, yPosition);
     yPosition += 15;
@@ -633,13 +644,15 @@ const addDocumentFooter = async (doc: jsPDF, options: Required<PDFOptions>, logo
 
 // Função para formatar valores monetários no PDF
 const formatCurrencyForPDF = (value: any): string => {
-  if (!value) return 'R$ 0,00';
+  // Valores vazios não devem exibir R$ 0,00 no PDF
+  if (value === null || value === undefined || value === '') return '';
   
   const numValue = typeof value === 'string' 
     ? parseFloat(value.replace(/[^\d,.-]/g, '').replace(',', '.')) 
     : parseFloat(String(value));
     
-  if (isNaN(numValue)) return String(value);
+  // Se não for numérico válido, retorna vazio
+  if (isNaN(numValue)) return '';
   
   return numValue.toLocaleString('pt-BR', {
     style: 'currency',

@@ -298,8 +298,8 @@ debugger
       const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
       
       const recebimento = row[recebimentoColumn || ''];
-      const metodoPagamento = String(row[metodoPagamentoColumn || ''] || 'Não especificado').trim();
-      debugger
+      const metodoPagamento = String(row[metodoPagamentoColumn || ''] || '').trim();
+      
       // Verificar se é inadimplente baseado no mês de referência
       let isInadimplente = false;
       if (mesReferenciaDate && dataVencimentoColumn) {
@@ -318,10 +318,13 @@ debugger
       if (!isInadimplente) {
         // Se tem data de recebimento (recebido)
         if (recebimento && String(recebimento).trim() !== '') {
-          if (!totalRecebidoPorForma[metodoPagamento]) {
-            totalRecebidoPorForma[metodoPagamento] = 0;
+          // Só contabilizar se tiver método de pagamento especificado e valor maior que zero
+          if (metodoPagamento !== '' && valor > 0) {
+            if (!totalRecebidoPorForma[metodoPagamento]) {
+              totalRecebidoPorForma[metodoPagamento] = 0;
+            }
+            totalRecebidoPorForma[metodoPagamento] += valor;
           }
-          totalRecebidoPorForma[metodoPagamento] += valor;
         } else {
           // Em aberto
           totalEmAberto += valor;

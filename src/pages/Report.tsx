@@ -19,12 +19,14 @@ import { getActivePlansInPeriod, SubscriptionPlan, identifySubscriptionPlans, sa
 
 // Função para formatar valores monetários
 const formatCurrency = (value: any): string => {
-  if (!value) return 'R$ 0,00';
+  // Se o valor for null, undefined ou string vazia, retornar vazio
+  if (value === null || value === undefined || value === '') return '';
   
   const numValue = typeof value === 'string' 
     ? parseFloat(value.replace(/[^\d,.-]/g, '').replace(',', '.')) 
     : parseFloat(String(value));
     
+  // Se não for um número válido, retornar o valor original como string
   if (isNaN(numValue)) return String(value);
   
   return numValue.toLocaleString('pt-BR', {
@@ -272,7 +274,7 @@ export default function Report() {
     const totalRecebidoPorForma: Record<string, number> = {};
     let totalEmAberto = 0;
     let totalInadimplentes = 0;
-debugger
+
     // Obter mês de referência para comparação
     let mesReferenciaDate: Date | null = null;
     if (filters.mesReferencia) {
@@ -281,7 +283,7 @@ debugger
         mesReferenciaDate = new Date(parseInt(ano), parseInt(mes) - 1, 1);
       }
     }
-debugger
+
     data.forEach(row => {
       // Ignorar linhas que são planos de assinatura (trimestral/semestral)
       const rowText = Object.entries(row)

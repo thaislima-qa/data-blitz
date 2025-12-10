@@ -139,22 +139,48 @@ const findDateInRow = (row: Record<string, any>): Date | null => {
 
 /**
  * Procura por valores monetários na linha
+ * Prioriza colunas que contêm "valor" no nome
  */
 const findValueInRow = (row: Record<string, any>): number | undefined => {
+  // Primeiro, procurar em colunas com "valor" no nome (mais confiável)
+  for (const [key, value] of Object.entries(row)) {
+    if (!value) continue;
+    
+    const keyLower = key.toLowerCase();
+    if (keyLower.includes('valor') || keyLower.includes('total') || keyLower.includes('price')) {
+      const stringValue = String(value).trim();
+      
+      // Remove símbolos de moeda e espaços
+      const cleanValue = stringValue
+        .replace(/[R$\s]/g, '')
+        .replace(/\./g, '') // Remove separador de milhar
+        .replace(',', '.'); // Converte vírgula decimal para ponto
+      
+      const numericValue = parseFloat(cleanValue);
+      if (!isNaN(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+  }
+  
+  // Fallback: procurar em qualquer coluna com formato monetário
   for (const value of Object.values(row)) {
     if (!value) continue;
     
     const stringValue = String(value).trim();
 
-    // Verifica se a string tem padrão de número/valor monetário (ex: "R$ 123,45")
-    if (!/^R\$\s?\d{1,3}(\.\d{3})*(,\d{2})?$/.test(stringValue)) {
-      continue; // pula se não parecer valor monetário
+    // Aceita formatos: "R$ 123,45", "R$123,45", "123,45", "1.234,56"
+    if (!/^(R\$\s?)?\d{1,3}(\.\d{3})*(,\d{2})?$/.test(stringValue) &&
+        !/^(R\$\s?)?\d+,\d{2}$/.test(stringValue)) {
+      continue;
     }
 
     // Remove símbolos e espaços
-    const cleanValue = stringValue.replace(/[R$\s]/g, '').replace(',', '.');
+    const cleanValue = stringValue
+      .replace(/[R$\s]/g, '')
+      .replace(/\./g, '') // Remove separador de milhar
+      .replace(',', '.'); // Converte vírgula decimal para ponto
 
-    // Tenta converter para número
     const numericValue = parseFloat(cleanValue);
     if (!isNaN(numericValue) && numericValue > 0) {
       return numericValue;

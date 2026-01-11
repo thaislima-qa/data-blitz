@@ -654,15 +654,27 @@ const formatCurrencyForPDF = (value: any): string => {
 
 // Função para detectar se uma coluna contém valores monetários
 const isMonetaryColumnPDF = (columnName: string): boolean => {
+  const name = columnName.toLowerCase();
+
+  // IMPORTANT: não tratar colunas de "método/forma de pagamento" como monetárias
+  // (ex.: "Método de pagamento"), senão o valor vira vazio no PDF.
+  if (
+    name.includes('método') ||
+    name.includes('metodo') ||
+    name.includes('forma') ||
+    name.includes('payment method') ||
+    (name.includes('pagamento') && name.includes('método'))
+  ) {
+    return false;
+  }
+
   const monetaryKeywords = [
     'valor', 'price', 'preco', 'preço', 'amount', 'total', 'subtotal',
     'desconto', 'discount', 'taxa', 'fee', 'custo', 'cost', 'receita',
-    'revenue', 'faturamento', 'billing', 'pagamento', 'payment'
+    'revenue', 'faturamento', 'billing'
   ];
-  
-  return monetaryKeywords.some(keyword => 
-    columnName.toLowerCase().includes(keyword)
-  );
+
+  return monetaryKeywords.some(keyword => name.includes(keyword));
 };
 
 const formatCellForPDF = (value: any, columnName: string): string => {

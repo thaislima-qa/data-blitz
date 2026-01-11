@@ -42,13 +42,8 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       sede = 'Fátima';
     }
 
-    let metodoPagamento: 'Cartão de Crédito' | 'PIX' | null = null;
-    
-    if (row["Método de pagamento"].includes('Cartão')) {
-      metodoPagamento = 'Cartão de Crédito';
-    } else {
-      metodoPagamento = 'PIX';
-    }
+    // Busca flexível pelo método de pagamento
+    const metodoPagamento = findPaymentMethodInRow(row);
 
     
 
@@ -187,6 +182,39 @@ const findValueInRow = (row: Record<string, any>): number | undefined => {
     }
   }
 
+  return undefined;
+};
+
+/**
+ * Procura pelo método de pagamento na linha
+ */
+const findPaymentMethodInRow = (row: Record<string, any>): string | undefined => {
+  const paymentFields = ['método', 'metodo', 'pagamento', 'payment', 'forma'];
+  
+  for (const [key, value] of Object.entries(row)) {
+    const keyLower = key.toLowerCase();
+    if (paymentFields.some(field => keyLower.includes(field)) && value) {
+      const valueStr = String(value).trim().toLowerCase();
+      
+      if (valueStr.includes('cartão') || valueStr.includes('cartao') || valueStr.includes('crédito') || valueStr.includes('credito') || valueStr.includes('credit')) {
+        return 'Cartão de Crédito';
+      } else if (valueStr.includes('pix')) {
+        return 'PIX';
+      } else if (valueStr.includes('boleto')) {
+        return 'Boleto';
+      } else if (valueStr.includes('débito') || valueStr.includes('debito') || valueStr.includes('debit')) {
+        return 'Débito';
+      } else if (valueStr.includes('dinheiro') || valueStr.includes('cash') || valueStr.includes('espécie') || valueStr.includes('especie')) {
+        return 'Dinheiro';
+      } else if (valueStr.includes('transferência') || valueStr.includes('transferencia') || valueStr.includes('transfer')) {
+        return 'Transferência';
+      } else if (valueStr.trim() !== '') {
+        // Retorna o valor original se não for um método conhecido mas não está vazio
+        return String(value).trim();
+      }
+    }
+  }
+  
   return undefined;
 };
 

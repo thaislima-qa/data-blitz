@@ -152,6 +152,16 @@ export const applyFilters = (
   // Apply Sede filter
   if (filters.sede && consultorColumn) {
     filteredData = filteredData.filter(row => {
+      if (filters.sede === 'Sala Interativa') {
+        // Para Sala Interativa, verifica se há 'funcional' ou 'personalizado' na descrição
+        const descricaoValue = row[descricaoColumn];
+        if (!descricaoValue) return false;
+        
+        const descricao = String(descricaoValue).toLowerCase();
+        return descricao.includes('funcional') || descricao.includes('personalizado');
+      }
+      
+      // Para outras sedes, verifica o consultor
       const consultorValue = row[consultorColumn];
       if (!consultorValue) return false;
       
@@ -161,8 +171,6 @@ export const applyFilters = (
         return consultor === 'Thais Lima';
       } else if (filters.sede === 'Fátima') {
         return consultor === 'Taiana Lima';
-      } else if (filters.sede === 'Sala Interativa') {
-        return consultor === 'Ricardo Moacir';
       }
       
       return false;

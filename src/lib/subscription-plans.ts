@@ -40,7 +40,7 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       sede = 'Maraponga';
     } else if (row.Consultor.includes('Taiana')) {
       sede = 'Fátima';
-    } else if (row.Consultor.includes('Ricardo')) {
+    } else if (rowText.includes('funcional') || rowText.includes('personalizado')) {
       sede = 'Sala Interativa';      
     }
 

@@ -177,9 +177,11 @@ export const generatePDF = async (
     doc.line(20, yPosition, pageWidth - 20, yPosition);
     yPosition += 15;
 
-      // >>> Forçar nova página para iniciar DADOS DETALHADOS
-    doc.addPage();
-    yPosition = 20;
+    // Verificar se há espaço suficiente para DADOS DETALHADOS, senão nova página
+    if (yPosition > doc.internal.pageSize.height - 50) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
     doc.setFontSize(14);
     doc.text('DADOS DETALHADOS', 20, yPosition);
@@ -243,9 +245,11 @@ export const generatePDF = async (
 
     yPosition = (doc as any).lastAutoTable.finalY + 20;
 
-    // Forçar nova página para Total de Alunos Ativos (isolado após planos)
-    doc.addPage();
-    yPosition = 20;
+    // Verificar se há espaço suficiente para Total de Alunos Ativos, senão nova página
+    if (yPosition > doc.internal.pageSize.height - 80) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
     // TOTAL DE ALUNOS ATIVOS
     doc.setFontSize(14);
@@ -262,9 +266,11 @@ export const generatePDF = async (
     doc.text(`Inadimplentes: ${alunosAtivos.inadimplentes}`, 25, yPosition);
     yPosition += 15;
     
-    // >>> Forçar nova página para iniciar DADOS DETALHADOS
-    doc.addPage();
-    yPosition = 20;
+    // Verificar se há espaço suficiente para a tabela de inadimplentes, senão nova página
+    if (yPosition > doc.internal.pageSize.height - 100) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
     // Adicionar Tabela de Inadimplentes se existir
     if (inadimplentesList && inadimplentesList.length > 0) {
@@ -303,9 +309,11 @@ export const generatePDF = async (
 
     }
     
-    // >>> Forçar nova página para iniciar DADOS DETALHADOS
-    doc.addPage();
-    yPosition = 20;
+    // Verificar se há espaço suficiente para Planos Mensais Ativos, senão nova página
+    if (yPosition > doc.internal.pageSize.height - 50) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');

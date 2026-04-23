@@ -317,6 +317,7 @@ export const MultipleFilters = React.forwardRef<HTMLDivElement, MultipleFiltersP
                       <SelectItem value="all">Todos os tipos</SelectItem>
                       <SelectItem value="Contrato/Serviço">Contrato/Serviço</SelectItem>
                       <SelectItem value="Produto">Produto</SelectItem>
+                      <SelectItem value="Sala Interativa">Sala Interativa</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

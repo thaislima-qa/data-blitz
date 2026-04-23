@@ -179,6 +179,8 @@ export const applyFilters = (
         return descricao.includes('plano');
       } else if (filters.tipo === 'Produto') {
         return descricao.includes('camisa') || descricao.includes('regata');
+      } else if (filters.tipo === 'Sala Interativa') {
+        return descricao.includes('funcional') || descricao.includes('personalizado');  
       }
       
       return false;

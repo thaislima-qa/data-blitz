@@ -294,6 +294,7 @@ export const MultipleFilters = React.forwardRef<HTMLDivElement, MultipleFiltersP
                       <SelectItem value="all">Todas as sedes</SelectItem>
                       <SelectItem value="Maraponga">Maraponga</SelectItem>
                       <SelectItem value="Fátima">Fátima</SelectItem>
+                      <SelectItem value="Sala Interativa">Sala Interativa</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -34,12 +34,14 @@ export const identifySubscriptionPlans = (csvData: Record<string, any>[]): Subsc
       tipoPlano = 'semestral';
     }
 
-    let sede: 'Maraponga' | 'Fátima' | null = null;
+    let sede: 'Maraponga' | 'Fátima' | 'Sala Interativa' | null = null;
     
     if (row.Consultor.includes('Thais')) {
       sede = 'Maraponga';
     } else if (row.Consultor.includes('Taiana')) {
       sede = 'Fátima';
+    } else if (row.Consultor.includes('Ricardo')) {
+      sede = 'Sala Interativa';      
     }
 
     // Busca flexível pelo método de pagamento

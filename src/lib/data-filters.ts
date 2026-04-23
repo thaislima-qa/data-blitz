@@ -161,6 +161,8 @@ export const applyFilters = (
         return consultor === 'Thais Lima';
       } else if (filters.sede === 'Fátima') {
         return consultor === 'Taiana Lima';
+      } else if (filters.sede === 'Sala Interativa') {
+        return consultor === 'Ricardo Moacir';
       }
       
       return false;

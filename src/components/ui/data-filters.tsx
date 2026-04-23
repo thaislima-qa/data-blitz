@@ -271,6 +271,7 @@ export const DataFilters = React.forwardRef<HTMLDivElement, DataFiltersProps>(
                     <SelectItem value="all">Todas as sedes</SelectItem>
                     <SelectItem value="Maraponga">Maraponga</SelectItem>
                     <SelectItem value="Fátima">Fátima</SelectItem>
+                    <SelectItem value="Sala Interativa">Sala Interativa</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">

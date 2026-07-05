@@ -242,12 +242,21 @@ export default function Report() {
     const columns = Object.keys(data[0]);
     
     // Detectar colunas
+    // Importante: "valor" também aparece dentro de "Valor Recebido", então a coluna
+    // do valor CONTRATADO é buscada excluindo explicitamente as variações de "recebido"
+    // para não haver ambiguidade entre as duas colunas.
     const valorColumn = columns.find(col => 
-      col.toLowerCase().includes('valor') || 
+      (col.toLowerCase().includes('valor') && !col.toLowerCase().includes('recebido')) || 
       col.toLowerCase().includes('amount') ||
       col.toLowerCase().includes('total') ||
       col.toLowerCase().includes('preco') ||
       col.toLowerCase().includes('preço')
+    );
+
+    // Coluna com o valor efetivamente RECEBIDO (pode ser diferente do valor
+    // contratado em casos de desconto, pagamento parcial, taxas, etc.)
+    const valorRecebidoColumn = columns.find(col =>
+      col.toLowerCase().includes('valor') && col.toLowerCase().includes('recebido')
     );
     
     const recebimentoColumn = columns.find(col => 
@@ -298,6 +307,14 @@ export default function Report() {
       // Melhor parsing de valores monetários
       const valorStr = String(row[valorColumn || ''] || '0');
       const valor = parseFloat(valorStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+
+      // Valor efetivamente recebido: usa a coluna "Valor Recebido" quando ela existir
+      // e estiver preenchida (cobre casos de pagamento parcial/com desconto);
+      // caso contrário, cai para o valor contratado ("Valor").
+      const valorRecebidoStr = valorRecebidoColumn ? String(row[valorRecebidoColumn] ?? '').trim() : '';
+      const valorRecebido = valorRecebidoStr !== ''
+        ? (parseFloat(valorRecebidoStr.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0)
+        : valor;
       
       const recebimento = row[recebimentoColumn || ''];
       const metodoPagamento = String(row[metodoPagamentoColumn || ''] || '').trim();
@@ -311,8 +328,8 @@ export default function Report() {
         // Inadimplente: data de vencimento anterior ao mês de referência
         if (dataVencimento && dataVencimento < mesReferenciaDate) {
           isInadimplente = true;
-          totalInadimplentes += valor;
-          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor: ${valor}`);
+          totalInadimplentes += valorRecebido;
+          console.log(`🔴 Inadimplente encontrado: ${row[valorColumn || '']} - Data vencimento: ${dataVencimentoStr} - Valor recebido: ${valorRecebido}`);
         }
       }
       
@@ -321,11 +338,11 @@ export default function Report() {
         // Se tem data de recebimento (recebido)
         if (recebimento && String(recebimento).trim() !== '') {
           // Só contabilizar se tiver método de pagamento especificado e valor maior que zero
-          if (metodoPagamento !== '' && valor > 0) {
+          if (metodoPagamento !== '' && valorRecebido > 0) {
             if (!totalRecebidoPorForma[metodoPagamento]) {
               totalRecebidoPorForma[metodoPagamento] = 0;
             }
-            totalRecebidoPorForma[metodoPagamento] += valor;
+            totalRecebidoPorForma[metodoPagamento] += valorRecebido;
           }
         } else {
           // Em aberto

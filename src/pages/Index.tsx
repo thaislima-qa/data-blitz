@@ -102,6 +102,9 @@ export default function Index() {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Importe seus dados CSV e gere relatórios profissionais em PDF de forma rápida e intuitiva
           </p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate("/consolidado")}>
+            Consolidado mensal por sede (.xlsx)
+          </Button>
         </div>
 
         {/* Upload Section */}

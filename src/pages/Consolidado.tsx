@@ -40,6 +40,11 @@ export default function Consolidado() {
   const [cutStart, setCutStart] = useState("");
   const [cutEnd, setCutEnd] = useState("");
   const [cutTouched, setCutTouched] = useState(false);
+  const [taxa, setTaxa] = useState("2,7");
+  const [imposto, setImposto] = useState("6");
+  const [nomeA, setNomeA] = useState("CT Taiana Lima");
+  const [nomeB, setNomeB] = useState("Arena Moove");
+  const [pctA, setPctA] = useState("55");
   const [studio, setStudio] = useState("Taiana Lima Academy");
   const [busy, setBusy] = useState(false);
   const [colunasDisp, setColunasDisp] = useState<string[]>([]);
@@ -108,8 +113,8 @@ export default function Consolidado() {
   };
 
   const rel = useMemo(
-    () => (ref && rows.length ? buildReport(rows, { sede, ref, cutStart, cutEnd }, contratos) : null),
-    [rows, sede, ref, cutStart, cutEnd, contratos],
+    () => (ref && rows.length ? buildReport(rows, { sede, ref, cutStart, cutEnd, taxaCartao: num(taxa, 2.7), imposto: num(imposto, 6), partes: [{ nome: nomeA, pct: num(pctA, 55) }, { nome: nomeB, pct: 100 - num(pctA, 55) }] }, contratos) : null),
+    [rows, sede, ref, cutStart, cutEnd, contratos, taxa, imposto, nomeA, nomeB, pctA],
   );
 
   const guardarColunas = (next: string[]) => {
@@ -221,6 +226,14 @@ export default function Consolidado() {
                 <Label htmlFor="studio">Nome na capa</Label>
                 <Input id="studio" value={studio} onChange={(e) => setStudio(e.target.value)} />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1"><Label htmlFor="taxa">Taxa cartão (%)</Label><Input id="taxa" inputMode="decimal" value={taxa} onChange={(e) => setTaxa(e.target.value)} /></div>
+                <div className="space-y-1"><Label htmlFor="imp">Impostos (%)</Label><Input id="imp" inputMode="decimal" value={imposto} onChange={(e) => setImposto(e.target.value)} /></div>
+                <div className="space-y-1"><Label htmlFor="nA">Sócio 1</Label><Input id="nA" value={nomeA} onChange={(e) => setNomeA(e.target.value)} /></div>
+                <div className="space-y-1"><Label htmlFor="pA">% sócio 1</Label><Input id="pA" inputMode="decimal" value={pctA} onChange={(e) => setPctA(e.target.value)} /></div>
+                <div className="space-y-1"><Label htmlFor="nB">Sócio 2</Label><Input id="nB" value={nomeB} onChange={(e) => setNomeB(e.target.value)} /></div>
+                <div className="space-y-1"><Label>% sócio 2</Label><Input disabled value={String(100 - num(pctA, 55)).replace(".", ",")} /></div>
+              </div>
               <Button className="w-full" disabled={!rel} onClick={baixarPDF}><FileDown className="h-4 w-4 mr-2" />Baixar PDF</Button>
               {pdfPronto && (
                 <div className="mt-2 space-y-1 rounded-md border p-2 text-xs">
@@ -274,15 +287,14 @@ export default function Consolidado() {
                     <p className="text-sm text-muted-foreground">Recebimentos atrasados de {fmtDate(rel.cfg.cutStart)} a {fmtDate(rel.cfg.cutEnd)}</p>
                   </CardHeader>
                   <CardContent className="space-y-4 max-w-xl">
-                    {rel.porForma.map((f) => (
-                      <Bloco key={f.forma} titulo={`Total recebido via ${f.forma}`} valor={f.total} cor="pos"
-                        itens={[["Planos Mensais", f.mensais], ["Planos Trimestrais/Semestrais", f.planos]]} />
-                    ))}
-                    <Bloco titulo="Inadimplentes recebimentos" valor={rel.inad.total} cor="pos" />
-                    <Bloco titulo="Valor em aberto" valor={rel.totais.aberto} cor="neg" />
-                    <div className="flex justify-between text-2xl font-bold text-primary border-t pt-3"><span>Total Geral</span><span>{fmtMoney(rel.totais.geral)}</span></div>
-                    <div className="flex justify-between italic"><span>Total Distribuição*</span><span>{fmtMoney(rel.totais.distribuicao)}</span></div>
-                    <p className="text-xs text-muted-foreground">*Valor antes da dedução dos impostos</p>
+                    <Bloco titulo={`Mensalidades ${fmtMonth(rel.cfg.ref)}`} valor={rel.resumo.mensalidades} cor="pos" />
+                    <Bloco titulo="Adimplentes + inadimplentes meses anteriores (Total Distribuição)" valor={rel.resumo.adimplentesMaisAnteriores} cor="pos" />
+                    <Bloco titulo="Inadimplentes" valor={rel.resumo.inadimplentes} cor="neg" />
+                    <Bloco titulo="Recebimentos (adimplentes)" valor={rel.resumo.cartao + rel.resumo.pixDinheiro + rel.resumo.inadAnteriores} cor="pos"
+                      itens={[["Via Cartão", rel.resumo.cartao], ["Via PIX & Dinheiro", rel.resumo.pixDinheiro], ["Inadimplentes meses anteriores", rel.resumo.inadAnteriores]]} />
+                    <Bloco titulo="Descontos" valor={rel.resumo.taxaCartao + rel.resumo.impostos} cor="neg"
+                      itens={[[`Taxa cartão (${rel.resumo.taxaPct}%)`, rel.resumo.taxaCartao], [`Impostos (${rel.resumo.impostoPct}%)`, rel.resumo.impostos]]} />
+                    <Bloco titulo="Valor a distribuir" valor={rel.resumo.valorDistribuir} cor="pos" itens={rel.resumo.partes.map((p) => [`${p.nome} (${p.pct}%)`, p.valor] as [string, number])} />
                     <div className="flex gap-6 pt-2">
                       <Stat n={rel.alunos.ativos} l="alunos ativos" /><Stat n={rel.alunos.adimp} l="adimplentes" /><Stat n={rel.alunos.inad} l="inadimplentes" />
                     </div>
@@ -369,6 +381,8 @@ export default function Consolidado() {
     </div>
   );
 }
+
+const num = (v: string, padrao: number) => { const n = parseFloat(v.replace(",", ".")); return Number.isFinite(n) ? n : padrao; };
 
 function Bloco({ titulo, valor, cor, itens }: { titulo: string; valor: number; cor: "pos" | "neg"; itens?: [string, number][] }) {
   return (

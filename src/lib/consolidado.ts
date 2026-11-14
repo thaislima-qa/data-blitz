@@ -69,12 +69,25 @@ export interface Config {
   ref: string; // YYYY-MM
   cutStart: string; // YYYY-MM-DD
   cutEnd: string; // YYYY-MM-DD
+  taxaCartao?: number; // % (padrão 2,7)
+  imposto?: number; // % (padrão 6)
+  partes?: { nome: string; pct: number }[]; // divisão do valor a distribuir
+}
+
+export const PARTES_PADRAO = [{ nome: 'CT Taiana Lima', pct: 55 }, { nome: 'Arena Moove', pct: 45 }];
+
+export interface Resumo {
+  mensalidades: number; adimplentesMaisAnteriores: number; inadimplentes: number;
+  cartao: number; pixDinheiro: number; inadAnteriores: number;
+  taxaCartao: number; taxaPct: number; impostos: number; impostoPct: number;
+  valorDistribuir: number; partes: { nome: string; pct: number; valor: number }[];
 }
 
 export interface Relatorio {
   cfg: Config;
   mensais: { rows: Linha[]; pagas: Linha[]; abertas: Linha[]; recebido: number; porMetodo: [string, number][]; aberto: number; nAberto: number };
   inad: { rows: Linha[]; total: number };
+  resumo: Resumo;
   porForma: { forma: string; total: number; mensais: number; planos: number }[];
   planos: { rows: PlanoAtivo[]; recebido: number; porMetodo: [string, number][]; nTri: number; nSem: number; nAnu: number };
   alunos: { ativos: number; adimp: number; inad: number };
@@ -355,8 +368,24 @@ export function buildReport(allRows: Linha[], cfg: Config, saved: Contrato[] = [
     return { forma: f === 'pix' ? 'Pix' : f === 'cartao' ? 'Cartão' : 'Outras formas', total: Math.round((mensais + planosV) * 100) / 100, mensais, planos: planosV };
   }).filter((x, i) => i < 2 || x.total > 0);
 
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const isCartao = (m: string) => formaPagamento(m) === 'cartao';
+  const cartao = r2(sum(mensRec.filter((r) => isCartao(r.metodo)), (r) => r.recebido) + sum(plRec.filter((p) => isCartao(p.metodo)), (p) => p.valor));
+  const cartaoInad = sum(inad.filter((r) => isCartao(r.metodo)), (r) => r.recebido);
+  const distrib = r2(tMens + tPl + tInad);
+  const taxaPct = cfg.taxaCartao ?? 2.7, impPct = cfg.imposto ?? 6;
+  const taxa = r2((cartao + cartaoInad) * taxaPct / 100), imp = r2(distrib * impPct / 100);
+  const valorDistribuir = r2(distrib - taxa - imp);
+  const resumo: Resumo = {
+    mensalidades: r2(tMens + tPl + tAb), adimplentesMaisAnteriores: distrib, inadimplentes: tAb,
+    cartao, pixDinheiro: r2(tMens + tPl - cartao), inadAnteriores: r2(tInad),
+    taxaCartao: taxa, taxaPct, impostos: imp, impostoPct: impPct, valorDistribuir,
+    partes: (cfg.partes ?? PARTES_PADRAO).map((x) => ({ ...x, valor: r2(valorDistribuir * x.pct / 100) })),
+  };
+
   return {
     cfg,
+    resumo,
     porForma,
     mensais: { rows: mens, pagas: mensRec, abertas: mensAb, recebido: tMens, porMetodo: groupSum(mensRec, (r) => methodLabel(r.metodo, false), (r) => r.recebido), aberto: sum(mensAb, (r) => r.valor), nAberto: mensAb.length },
     inad: { rows: inad, total: tInad },

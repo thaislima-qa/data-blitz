@@ -123,5 +123,6 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
     doc.setPage(p); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(110, 110, 120);
     doc.text(`Página ${p - 1} de ${n - 1} · ${cfg.sede} · ${fmtMonth(cfg.ref)}`, W - 40, H - 18, { align: "right" });
   }
-  doc.save(`Consolidado-${cfg.sede.replace(/\s+/g, "-")}-${cfg.ref.slice(5, 7)}-${cfg.ref.slice(0, 4)}.pdf`);
+  const nome = `Consolidado-${cfg.sede.replace(/\s+/g, "-")}-${cfg.ref.slice(5, 7)}-${cfg.ref.slice(0, 4)}.pdf`;
+  return { blob: doc.output("blob") as Blob, nome };
 }

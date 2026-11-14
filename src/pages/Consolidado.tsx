@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { readSheet } from "read-excel-file/browser";
-import { ArrowDown, ArrowLeft, ArrowUp, FileDown, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, FileDown, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -184,8 +184,8 @@ export default function Consolidado() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       <div className="container mx-auto px-4 py-8 max-w-7xl space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
           <h1 className="text-3xl font-bold">Consolidado Mensal</h1>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate("/comparar")}>Entradas e saídas (comparar PDFs)</Button>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">

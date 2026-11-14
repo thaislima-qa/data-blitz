@@ -90,7 +90,7 @@ export interface Relatorio {
   resumo: Resumo;
   porForma: { forma: string; total: number; mensais: number; planos: number }[];
   planos: { rows: PlanoAtivo[]; recebido: number; porMetodo: [string, number][]; nTri: number; nSem: number; nAnu: number };
-  alunos: { ativos: number; adimp: number; inad: number };
+  alunos: { ativos: number; adimp: number; inad: number; lista: { nome: string; detalhe: string }[] };
   totais: { aberto: number; distribuicao: number; geral: number };
   diag: {
     linhas: number;
@@ -357,6 +357,11 @@ export function buildReport(allRows: Linha[], cfg: Config, saved: Contrato[] = [
   mens.forEach((r) => { ativos.add(norm(r.cliente)); if (isOpen(r)) inadSet.add(norm(r.cliente)); });
   planos.forEach((p) => { ativos.add(norm(p.cliente)); if (p.aberto) inadSet.add(norm(p.cliente)); });
 
+  const vistos = new Map<string, { nome: string; detalhe: string }>();
+  planos.forEach((p) => { const k = norm(p.cliente); if (!vistos.has(k)) vistos.set(k, { nome: p.cliente, detalhe: p.tipo }); });
+  mens.forEach((r) => { const k = norm(r.cliente); if (!vistos.has(k)) vistos.set(k, { nome: r.cliente, detalhe: celula(r, 'Descrição') || r.desc }); });
+  const listaAtivos = [...vistos.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
   const tMens = sum(mensRec, (r) => r.recebido);
   const tPl = sum(plRec, (p) => p.valor);
   const tInad = sum(inad, (r) => r.recebido);
@@ -393,7 +398,7 @@ export function buildReport(allRows: Linha[], cfg: Config, saved: Contrato[] = [
       rows: planos, recebido: tPl, porMetodo: groupSum(plRec, (p) => methodLabel(p.metodo, true), (p) => p.valor),
       nTri: planos.filter((p) => p.tipo === 'Trimestral').length, nSem: planos.filter((p) => p.tipo === 'Semestral').length, nAnu: planos.filter((p) => p.tipo === 'Anual').length,
     },
-    alunos: { ativos: ativos.size, inad: inadSet.size, adimp: ativos.size - inadSet.size },
+    alunos: { ativos: ativos.size, inad: inadSet.size, adimp: ativos.size - inadSet.size, lista: listaAtivos },
     totais: { aberto: tAb, distribuicao: Math.round((tMens + tPl + tInad) * 100) / 100, geral: Math.round((tMens + tPl + tInad + tAb) * 100) / 100 },
     diag: {
       linhas: allRows.length,

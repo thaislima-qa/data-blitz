@@ -149,6 +149,13 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   title("Planos Mensais Ativos no Período", AZUL, `${r.mensais.pagas.length} mensalidade(s) recebidas com vencimento em ${fmtMonth(cfg.ref)} · ${money(r.mensais.recebido)}`);
   tabela(r.mensais.pagas, "Nenhuma mensalidade recebida neste mês", AZUL, false);
 
+  // Dados legíveis por máquina para a tela de comparação entre meses (campo Keywords do PDF).
+  const meta = { v: 1, sede: cfg.sede, ref: cfg.ref, alunos: r.alunos.lista, ativos: r.alunos.ativos, inad: r.alunos.inad };
+  doc.setProperties({
+    title: `Consolidado ${cfg.sede} ${fmtMonth(cfg.ref)}`,
+    keywords: "CONSOLIDADO-DATA:" + btoa(unescape(encodeURIComponent(JSON.stringify(meta)))),
+  });
+
   const n = doc.getNumberOfPages();
   // Marca d'água: selo recortado em círculo, translúcido, no centro de cada página depois da capa.
   if (selo) {

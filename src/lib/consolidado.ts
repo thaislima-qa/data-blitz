@@ -31,6 +31,8 @@ export interface Linha {
   consultor: string;
   sede: Sede | null;
   tipo: Tipo;
+  /** Todas as colunas da planilha, com o nome original do cabeçalho. */
+  dados: Record<string, unknown>;
 }
 
 export interface Contrato {
@@ -71,7 +73,7 @@ export interface Config {
 
 export interface Relatorio {
   cfg: Config;
-  mensais: { rows: Linha[]; recebido: number; porMetodo: [string, number][]; aberto: number; nAberto: number };
+  mensais: { rows: Linha[]; pagas: Linha[]; abertas: Linha[]; recebido: number; porMetodo: [string, number][]; aberto: number; nAberto: number };
   inad: { rows: Linha[]; total: number };
   planos: { rows: PlanoAtivo[]; recebido: number; porMetodo: [string, number][]; nTri: number; nSem: number; nAnu: number };
   alunos: { ativos: number; adimp: number; inad: number };
@@ -158,18 +160,47 @@ export function methodLabel(m: string, plan: boolean): string {
 /** Converte a matriz da planilha (1ª linha = cabeçalho) em linhas normalizadas. */
 export function linhasDaPlanilha(matriz: unknown[][]): Linha[] {
   if (!matriz.length) return [];
-  const header = matriz[0].map((h) => norm(h));
-  const objs = matriz.slice(1).map((row) => {
+  const original = cabecalhos(matriz);
+  const header = original.map((h) => norm(h));
+  const objs: Record<string, unknown>[] = [];
+  const raws: Record<string, unknown>[] = [];
+  matriz.slice(1).forEach((row) => {
     const o: Record<string, unknown> = {};
-    header.forEach((h, i) => { if (h) o[h] = row[i]; });
-    return o;
+    const raw: Record<string, unknown> = {};
+    header.forEach((h, i) => { if (h) { o[h] = row[i]; raw[original[i]] = row[i]; } });
+    objs.push(o);
+    raws.push(raw);
   });
-  return normalizeRows(objs);
+  return normalizeRows(objs, raws);
 }
 
-export function normalizeRows(objs: Record<string, unknown>[]): Linha[] {
+/** Nomes originais das colunas (1ª linha), sem as vazias. */
+export function cabecalhos(matriz: unknown[][]): string[] {
+  return (matriz[0] ?? []).map((h) => String(h ?? '').trim());
+}
+
+/** Colunas que vão para o PDF quando a pessoa ainda não escolheu. */
+export const COLUNAS_PADRAO = ['Cliente', 'Descrição', 'Data de vencimento', 'Data de recebimento', 'Valor', 'Valor recebido', 'Método de pagamento', 'Situação', 'Consultor'];
+
+/** Texto de uma célula para tabela/PDF: datas em dd/mm/aaaa e valores em R$. */
+export function celula(l: Linha, coluna: string): string {
+  const v = l.dados[coluna];
+  if (v == null || v === '') return '';
+  const n = norm(coluna);
+  if (n.startsWith('data')) {
+    const iso = toISO(v);
+    return iso ? fmtDate(iso) : String(v);
+  }
+  if (n.startsWith('valor')) return fmtMoney(toNum(v));
+  if (n === 'descricao') return String(v).replace(/\s*\[Moove [^\]]*\]/gi, '').trim() || String(v);
+  return String(v);
+}
+
+export const colunaNumerica = (coluna: string) => norm(coluna).startsWith('valor');
+
+export function normalizeRows(objs: Record<string, unknown>[], raws: Record<string, unknown>[] = []): Linha[] {
   const out: Linha[] = [];
-  objs.forEach((o) => {
+  objs.forEach((o, idx) => {
     const g = (...names: string[]) => {
       for (const n of names) if (o[n] != null && o[n] !== '') return o[n];
       return null;
@@ -193,6 +224,7 @@ export function normalizeRows(objs: Record<string, unknown>[]): Linha[] {
       consultor: String(g('consultor') ?? '').trim(),
       sede: detectSede(desc),
       tipo: detectTipo(desc),
+      dados: raws[idx] ?? {},
     });
   });
   return out;
@@ -312,7 +344,7 @@ export function buildReport(allRows: Linha[], cfg: Config, saved: Contrato[] = [
 
   return {
     cfg,
-    mensais: { rows: mens, recebido: tMens, porMetodo: groupSum(mensRec, (r) => methodLabel(r.metodo, false), (r) => r.recebido), aberto: sum(mensAb, (r) => r.valor), nAberto: mensAb.length },
+    mensais: { rows: mens, pagas: mensRec, abertas: mensAb, recebido: tMens, porMetodo: groupSum(mensRec, (r) => methodLabel(r.metodo, false), (r) => r.recebido), aberto: sum(mensAb, (r) => r.valor), nAberto: mensAb.length },
     inad: { rows: inad, total: tInad },
     planos: {
       rows: planos, recebido: tPl, porMetodo: groupSum(plRec, (p) => methodLabel(p.metodo, true), (p) => p.valor),

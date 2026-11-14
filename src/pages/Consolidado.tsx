@@ -1,29 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { readSheet } from "read-excel-file/browser";
-import { ArrowLeft, FileDown, Trash2, Upload } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, FileDown, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import logoSelo from "@/assets/taiana-lima-academy-selo.png?inline";
 import logoHorizontal from "@/assets/taiana-lima-academy-horizontal.png?inline";
 import {
   SEDES, addMonths, buildReport, contratoManual, defaultCut, deriveContracts, fmtDate, fmtMonth, fmtMoney,
-  linhasDaPlanilha, mergeContracts, mergeRows, methodLabel,
+  COLUNAS_PADRAO, cabecalhos, celula, colunaNumerica, linhasDaPlanilha, mergeContracts, mergeRows, methodLabel,
   type Contrato, type Linha, type Sede, type TipoPlano,
 } from "@/lib/consolidado";
 import { carregarContratos, removerContrato, salvarContratos } from "@/lib/consolidado-contracts";
 import { gerarConsolidadoPDF } from "@/lib/consolidado-pdf";
 
-const shortDesc = (d: string) => d.replace(/\s*\[Moove [^\]]*\]/gi, "").trim() || d;
 const hoje = () => new Date().toISOString().slice(0, 10);
 
-interface Arquivo { name: string; rows: Linha[] }
+interface Arquivo { name: string; rows: Linha[]; headers: string[] }
+
+const CHAVE_COLUNAS = "consolidado.colunas";
+const lerColunasSalvas = (): string[] => {
+  try { const j = JSON.parse(localStorage.getItem(CHAVE_COLUNAS) ?? "[]"); return Array.isArray(j) ? j.map(String) : []; } catch { return []; }
+};
 
 export default function Consolidado() {
   const navigate = useNavigate();
@@ -37,6 +42,8 @@ export default function Consolidado() {
   const [cutTouched, setCutTouched] = useState(false);
   const [studio, setStudio] = useState("Taiana Lima Academy");
   const [busy, setBusy] = useState(false);
+  const [colunasDisp, setColunasDisp] = useState<string[]>([]);
+  const [colunas, setColunas] = useState<string[]>([]);
   const [novo, setNovo] = useState({ cliente: "", sede: "Maraponga" as Sede, tipo: "Trimestral" as TipoPlano, start: "", mensal: "", metodo: "PIX/Depósito bancário" });
 
   const rows = useMemo(() => mergeRows(arquivos.map((a) => a.rows)), [arquivos]);
@@ -62,9 +69,10 @@ export default function Consolidado() {
     try {
       const lidos: Arquivo[] = [];
       for (const f of Array.from(files)) {
-        const linhas = linhasDaPlanilha((await readSheet(f)) as unknown[][]);
+        const matriz = (await readSheet(f)) as unknown[][];
+        const linhas = linhasDaPlanilha(matriz);
         if (!linhas.length) throw new Error(`Não encontrei as colunas Cliente e Data de vencimento em ${f.name}`);
-        lidos.push({ name: f.name, rows: linhas });
+        lidos.push({ name: f.name, rows: linhas, headers: cabecalhos(matriz) });
       }
       const todas = mergeRows(lidos.map((a) => a.rows));
       const novos = deriveContracts(todas);
@@ -73,6 +81,12 @@ export default function Consolidado() {
       await salvarContratos(mesclados.filter((c) => chaves.has(c.key)));
       setContratos(mesclados);
       setArquivos(lidos);
+      const disp = Array.from(new Set(lidos.flatMap((a) => a.headers).filter(Boolean)));
+      setColunasDisp(disp);
+      let sel = lerColunasSalvas().filter((c) => disp.includes(c));
+      if (!sel.length) sel = COLUNAS_PADRAO.filter((c) => disp.includes(c));
+      if (!sel.length) sel = disp.slice(0, 8);
+      setColunas(sel);
 
       const contagem: Record<string, number> = {};
       todas.forEach((r) => { if (r.sede) contagem[r.sede] = (contagem[r.sede] ?? 0) + 1; });
@@ -98,10 +112,23 @@ export default function Consolidado() {
     [rows, sede, ref, cutStart, cutEnd, contratos],
   );
 
+  const guardarColunas = (next: string[]) => {
+    setColunas(next);
+    try { localStorage.setItem(CHAVE_COLUNAS, JSON.stringify(next)); } catch { /* sem armazenamento */ }
+  };
+  const alternarColuna = (c: string) => guardarColunas(colunas.includes(c) ? colunas.filter((x) => x !== c) : [...colunas, c]);
+  const moverColuna = (c: string, delta: number) => {
+    const i = colunas.indexOf(c), j = i + delta;
+    if (i < 0 || j < 0 || j >= colunas.length) return;
+    const next = [...colunas];
+    [next[i], next[j]] = [next[j], next[i]];
+    guardarColunas(next);
+  };
+
   const baixarPDF = async () => {
     if (!rel) return;
     try {
-      await gerarConsolidadoPDF(rel, studio || "Taiana Lima Academy", logoSelo, logoHorizontal);
+      await gerarConsolidadoPDF(rel, studio || "Taiana Lima Academy", logoSelo, logoHorizontal, colunas);
     } catch (e: any) {
       console.error("Erro ao gerar o PDF do consolidado:", e);
       toast.error(`Não foi possível gerar o PDF${e?.message ? `: ${e.message}` : ""}`);
@@ -144,6 +171,7 @@ export default function Consolidado() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="space-y-6 min-w-0">
           <Card className="h-fit">
             <CardHeader><CardTitle className="text-base">Planilha e filtros</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -183,6 +211,31 @@ export default function Consolidado() {
               <Button className="w-full" disabled={!rel} onClick={baixarPDF}><FileDown className="h-4 w-4 mr-2" />Baixar PDF</Button>
             </CardContent>
           </Card>
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="text-base">Colunas das tabelas e do PDF</CardTitle>
+              <p className="text-sm text-muted-foreground">Marque as colunas da planilha que devem aparecer e use as setas para mudar a ordem.</p>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {colunasDisp.length === 0 && <p className="text-sm text-muted-foreground">As colunas aparecem depois que você enviar a planilha.</p>}
+              {[...colunas, ...colunasDisp.filter((c) => !colunas.includes(c))].map((c) => {
+                const marcada = colunas.includes(c), i = colunas.indexOf(c);
+                return (
+                  <div key={c} className="flex items-center gap-2 py-0.5">
+                    <Checkbox id={`col-${c}`} checked={marcada} onCheckedChange={() => alternarColuna(c)} />
+                    <Label htmlFor={`col-${c}`} className={`flex-1 text-sm font-normal ${marcada ? "" : "text-muted-foreground"}`}>{c}</Label>
+                    {marcada && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Subir ${c}`} disabled={i === 0} onClick={() => moverColuna(c, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Descer ${c}`} disabled={i === colunas.length - 1} onClick={() => moverColuna(c, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+          </div>
 
           <div className="space-y-6 min-w-0">
             {!rel ? (
@@ -230,8 +283,9 @@ export default function Consolidado() {
                   </CardContent>
                 </Card>
 
-                <TabelaLinhas titulo="Inadimplentes Recebidos" sub={`Mensalidades de meses anteriores recebidas entre ${fmtDate(rel.cfg.cutStart)} e ${fmtDate(rel.cfg.cutEnd)}.`} linhas={rel.inad.rows} />
-                <TabelaLinhas titulo="Planos Mensais Ativos no Período" sub={`${rel.mensais.rows.length} mensalidades com vencimento em ${fmtMonth(rel.cfg.ref)}, incluindo as pagas depois do fim do mês.`} linhas={rel.mensais.rows} />
+                <TabelaLinhas titulo="Inadimplentes do Mês" sub={`${rel.mensais.abertas.length} mensalidade(s) com vencimento em ${fmtMonth(rel.cfg.ref)} ainda em aberto · ${fmtMoney(rel.mensais.aberto)}`} linhas={rel.mensais.abertas} colunas={colunas} vermelho />
+                <TabelaLinhas titulo="Inadimplentes Recebidos" sub={`Mensalidades de meses anteriores recebidas entre ${fmtDate(rel.cfg.cutStart)} e ${fmtDate(rel.cfg.cutEnd)} · ${fmtMoney(rel.inad.total)}`} linhas={rel.inad.rows} colunas={colunas} />
+                <TabelaLinhas titulo="Planos Mensais Ativos no Período" sub={`${rel.mensais.pagas.length} mensalidade(s) recebidas com vencimento em ${fmtMonth(rel.cfg.ref)}, incluindo as pagas depois do fim do mês · ${fmtMoney(rel.mensais.recebido)}`} linhas={rel.mensais.pagas} colunas={colunas} />
 
                 <Card>
                   <CardHeader><CardTitle className="text-base">Conferência dos dados</CardTitle></CardHeader>
@@ -301,23 +355,18 @@ function Stat({ n, l }: { n: number; l: string }) {
   return <div><div className="text-2xl font-bold">{n}</div><div className="text-xs text-muted-foreground">{l}</div></div>;
 }
 
-function TabelaLinhas({ titulo, sub, linhas }: { titulo: string; sub: string; linhas: Linha[] }) {
+function TabelaLinhas({ titulo, sub, linhas, colunas, vermelho }: { titulo: string; sub: string; linhas: Linha[]; colunas: string[]; vermelho?: boolean }) {
   return (
     <Card>
       <CardHeader><CardTitle className="text-lg">{titulo}</CardTitle><p className="text-sm text-muted-foreground">{sub}</p></CardHeader>
       <CardContent>
-        {linhas.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum registro neste filtro.</p> : (
+        {linhas.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum registro neste filtro.</p> : colunas.length === 0 ? <p className="text-sm text-muted-foreground">Escolha ao menos uma coluna.</p> : (
           <Table>
-            <TableHeader><TableRow><TableHead>Cliente</TableHead><TableHead>Descrição</TableHead><TableHead>Vencimento</TableHead><TableHead>Recebimento</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="text-right">Recebido</TableHead><TableHead>Método</TableHead><TableHead>Situação</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow>{colunas.map((c) => <TableHead key={c} className={colunaNumerica(c) ? "text-right" : ""}>{c}</TableHead>)}</TableRow></TableHeader>
             <TableBody>
               {linhas.map((x, i) => (
-                <TableRow key={i}>
-                  <TableCell>{x.cliente}</TableCell><TableCell>{shortDesc(x.desc)}</TableCell>
-                  <TableCell className="whitespace-nowrap">{fmtDate(x.venc)}</TableCell><TableCell className="whitespace-nowrap">{fmtDate(x.rec)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">{fmtMoney(x.valor)}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">{x.sit === "Recebido" ? fmtMoney(x.recebido) : ""}</TableCell>
-                  <TableCell>{x.metodo}</TableCell>
-                  <TableCell>{x.sit === "Recebido" ? <Badge variant="secondary">Recebido</Badge> : <Badge variant="destructive">Aberto</Badge>}</TableCell>
+                <TableRow key={i} className={vermelho ? "text-destructive" : ""}>
+                  {colunas.map((c) => <TableCell key={c} className={colunaNumerica(c) ? "text-right whitespace-nowrap" : "whitespace-nowrap"}>{celula(x, c)}</TableCell>)}
                 </TableRow>
               ))}
             </TableBody>

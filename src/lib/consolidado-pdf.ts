@@ -49,13 +49,13 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   const curtoMin = `${mesNome.slice(0, 3).charAt(0).toUpperCase()}${mesNome.slice(1, 3)}/${cfg.ref.slice(2, 4)}`;
   const rs = r.resumo;
   let y = 84;
-  const H1 = 19;
+  const H1 = 21;
   type RGB = [number, number, number];
   const faixa = (txt: string, val: string | null, fill: RGB, txtColor: RGB = [0, 0, 0], bold = true, centro = false) => {
     doc.setFillColor(...fill); doc.rect(x0, y, wT, H1, "F");
     doc.setDrawColor(40, 40, 40); doc.setLineWidth(0.5); doc.rect(x0, y, wT, H1);
     if (val !== null) doc.line(x0 + wT - wV, y, x0 + wT - wV, y + H1);
-    doc.setTextColor(...txtColor); doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(9.5);
+    doc.setTextColor(...txtColor); doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(10.5);
     if (centro) doc.text(txt, x0 + wT / 2, y + 13, { align: "center" });
     else doc.text(txt, x0 + 6, y + 13);
     if (val !== null) doc.text(val, x0 + wT - 6, y + 13, { align: "right" });
@@ -67,7 +67,6 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   };
   const BR = (v: number) => money(v);
   titulo(`Consolidado ${mesCap} ${cfg.ref.slice(0, 4)} · ${cfg.sede}`);
-  faixa(`MENSALIDADES ${curto}`, BR(rs.mensalidades), [74, 134, 232], [255, 255, 255]);
   faixa(`Adimplentes ${curtoMin} + Inadimplentes Meses Anteriores`, BR(rs.adimplentesMaisAnteriores), [207, 226, 243]);
   doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60); doc.text("Total Distribuição", x0 + wT + 6, y - 7);
   faixa("Inadimplentes", BR(rs.inadimplentes), [244, 204, 204]);
@@ -94,27 +93,30 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   doc.setFillColor(0, 0, 128); doc.rect(40, H - 52, W - 80, 4, "F");
 
   // Detalhes
-  doc.addPage(); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(0, 0, 0); doc.text("DADOS DETALHADOS", 40, 56);
+  doc.addPage(); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(99, 25, 181); doc.text("DADOS DETALHADOS", 40, 56);
   let Y = 84;
+  const ROXO: [number, number, number] = [138, 43, 226];
   const common = {
-    theme: "grid" as const,
-    styles: { fontSize: 7.5, cellPadding: 4, lineColor: [220, 220, 230] as [number, number, number], textColor: [20, 20, 30] as [number, number, number], overflow: "linebreak" as const },
-    headStyles: { fillColor: [236, 232, 244] as [number, number, number], textColor: [60, 50, 80] as [number, number, number], fontStyle: "bold" as const },
+    theme: "striped" as const,
+    styles: { fontSize: 9, cellPadding: { top: 6, bottom: 6, left: 6, right: 6 }, textColor: [45, 45, 58] as [number, number, number], overflow: "linebreak" as const, lineWidth: 0 },
+    headStyles: { fillColor: ROXO, textColor: [255, 255, 255] as [number, number, number], fontStyle: "bold" as const, fontSize: 9.5 },
+    alternateRowStyles: { fillColor: [246, 243, 252] as [number, number, number] },
+    bodyStyles: { fillColor: [255, 255, 255] as [number, number, number] },
     margin: { left: 40, right: 40, top: 60, bottom: 40 },
     didDrawPage: () => { if (logo) doc.addImage(logo, "PNG", W - 40 - 110, 16, 110, 110 * logoRatio); },
   };
   const finalY = () => (doc as any).lastAutoTable.finalY as number;
   const title = (t: string, extra?: string) => {
     if (Y > H - 130) { doc.addPage(); Y = 70; }
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(0, 0, 0); doc.text(t, 40, Y); Y += 16;
-    if (extra) { doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(extra, 40, Y); Y += 8; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(99, 25, 181); doc.text(t, 40, Y); Y += 17;
+    if (extra) { doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(80, 80, 95); doc.text(extra, 40, Y); Y += 8; }
   };
 
   title("Planos de Assinatura Ativos no Período",
     `Total de Planos: ${r.planos.rows.length}   Trimestral: ${r.planos.nTri} | Semestral: ${r.planos.nSem}${r.planos.nAnu ? ` | Anual: ${r.planos.nAnu}` : ""}`);
   autoTable(doc, {
     ...common, startY: Y + 4,
-    columnStyles: { 2: { cellWidth: 62 }, 3: { cellWidth: 100 }, 4: { cellWidth: 62 } },
+    columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 72 }, 3: { cellWidth: 118 }, 4: { halign: "right" as const, cellWidth: 72 } },
     head: [["Tipo", "Cliente", "Vencimento", "Período", "Valor", "Método de pagamento"]],
     body: r.planos.rows.map((p) => [p.tipo, p.cliente, fmtDate(p.venc), `${fmtMonth(p.de)} a ${fmtMonth(p.ate)}`, money(p.valor), methodLabel(p.metodo, true) + (p.aberto ? " (em aberto)" : "")]),
   });
@@ -124,8 +126,8 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   const estilos = (cols: string[]) => {
     const st: Record<number, { halign?: "right"; cellWidth: number }> = {};
     cols.forEach((c, i) => {
-      if (colunaNumerica(c)) st[i] = { halign: "right", cellWidth: 64 };
-      else if (norm(c).startsWith("data")) st[i] = { cellWidth: 58 };
+      if (colunaNumerica(c)) st[i] = { halign: "right", cellWidth: 74 };
+      else if (norm(c).startsWith("data")) st[i] = { cellWidth: 70 };
     });
     return st;
   };
@@ -148,6 +150,18 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   tabela(r.mensais.pagas, "Nenhuma mensalidade recebida neste mês", false);
 
   const n = doc.getNumberOfPages();
+  // Marca d'água: selo recortado em círculo, translúcido, no centro de cada página depois da capa.
+  if (selo) {
+    const d = 380;
+    for (let p = 2; p <= n; p++) {
+      doc.setPage(p);
+      doc.saveGraphicsState();
+      doc.circle(W / 2, H / 2, d * 0.41, null); doc.clip(); doc.discardPath();
+      doc.setGState(new (doc as any).GState({ opacity: 0.11 }));
+      doc.addImage(selo, "PNG", W / 2 - d / 2, H / 2 - d / 2, d, d);
+      doc.restoreGraphicsState();
+    }
+  }
   for (let p = 3; p <= n; p++) {
     doc.setPage(p); doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(110, 110, 120);
     doc.text(`Página ${p - 1} de ${n - 1} · ${cfg.sede} · ${fmtMonth(cfg.ref)}`, W - 40, H - 18, { align: "right" });

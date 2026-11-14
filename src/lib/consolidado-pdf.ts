@@ -93,34 +93,36 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   doc.setFillColor(0, 0, 128); doc.rect(40, H - 52, W - 80, 4, "F");
 
   // Detalhes
-  doc.addPage(); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(99, 25, 181); doc.text("DADOS DETALHADOS", 40, 56);
-  let Y = 84;
-  const ROXO: [number, number, number] = [138, 43, 226];
+  let Y = 70;
+  type Cor = { head: RGB; titulo: RGB; zebra: RGB };
+  const ROXO: Cor = { head: [138, 43, 226], titulo: [99, 25, 181], zebra: [246, 243, 252] };
+  const VERMELHO: Cor = { head: [200, 40, 40], titulo: [170, 25, 25], zebra: [253, 241, 241] };
+  const VERDE: Cor = { head: [30, 140, 70], titulo: [20, 110, 55], zebra: [239, 250, 243] };
+  const AZUL: Cor = { head: [40, 110, 210], titulo: [25, 85, 170], zebra: [240, 246, 254] };
   const common = {
     theme: "striped" as const,
     styles: { fontSize: 9, cellPadding: { top: 6, bottom: 6, left: 6, right: 6 }, textColor: [45, 45, 58] as [number, number, number], overflow: "linebreak" as const, lineWidth: 0 },
-    headStyles: { fillColor: ROXO, textColor: [255, 255, 255] as [number, number, number], fontStyle: "bold" as const, fontSize: 9.5 },
-    alternateRowStyles: { fillColor: [246, 243, 252] as [number, number, number] },
+    headStyles: { fillColor: ROXO.head, textColor: [255, 255, 255] as [number, number, number], fontStyle: "bold" as const, fontSize: 9.5 },
     bodyStyles: { fillColor: [255, 255, 255] as [number, number, number] },
     margin: { left: 40, right: 40, top: 60, bottom: 40 },
     didDrawPage: () => { if (logo) doc.addImage(logo, "PNG", W - 40 - 110, 16, 110, 110 * logoRatio); },
   };
   const finalY = () => (doc as any).lastAutoTable.finalY as number;
-  const title = (t: string, extra?: string) => {
-    if (Y > H - 130) { doc.addPage(); Y = 70; }
-    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(99, 25, 181); doc.text(t, 40, Y); Y += 17;
+  // Cada seção começa em uma página nova, com a sua cor.
+  const title = (t: string, cor: Cor, extra?: string) => {
+    doc.addPage(); Y = 70;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...cor.titulo); doc.text(t, 40, Y); Y += 17;
     if (extra) { doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(80, 80, 95); doc.text(extra, 40, Y); Y += 8; }
   };
 
-  title("Planos de Assinatura Ativos no Período",
+  title("Planos de Assinatura Ativos no Período", ROXO,
     `Total de Planos: ${r.planos.rows.length}   Trimestral: ${r.planos.nTri} | Semestral: ${r.planos.nSem}${r.planos.nAnu ? ` | Anual: ${r.planos.nAnu}` : ""}`);
   autoTable(doc, {
-    ...common, startY: Y + 4,
+    ...common, startY: Y + 4, headStyles: { ...common.headStyles, fillColor: ROXO.head }, alternateRowStyles: { fillColor: ROXO.zebra },
     columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 72 }, 3: { cellWidth: 118 }, 4: { halign: "right" as const, cellWidth: 72 } },
     head: [["Tipo", "Cliente", "Vencimento", "Período", "Valor", "Método de pagamento"]],
     body: r.planos.rows.map((p) => [p.tipo, p.cliente, fmtDate(p.venc), `${fmtMonth(p.de)} a ${fmtMonth(p.ate)}`, money(p.valor), methodLabel(p.metodo, true) + (p.aberto ? " (em aberto)" : "")]),
   });
-  Y = finalY() + 26;
 
   // Valores e datas com largura fixa para não quebrar em duas linhas.
   const estilos = (cols: string[]) => {
@@ -131,23 +133,21 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
     });
     return st;
   };
-  const tabela = (linhas: Linha[], vazio: string, vermelho: boolean, cols: string[] = colunas) =>
+  const tabela = (linhas: Linha[], vazio: string, cor: Cor, vermelho: boolean, cols: string[] = colunas) =>
     autoTable(doc, {
-      ...common, startY: Y + 4, columnStyles: estilos(cols), head: [cols],
+      ...common, startY: Y + 4, headStyles: { ...common.headStyles, fillColor: cor.head }, alternateRowStyles: { fillColor: cor.zebra }, columnStyles: estilos(cols), head: [cols],
       body: linhas.length ? linhas.map((x) => cols.map((c) => celula(x, c))) : [[vazio, ...cols.slice(1).map(() => "")]],
       didParseCell: (d) => { if (vermelho && d.section === "body" && linhas.length) d.cell.styles.textColor = [196, 36, 36]; },
     });
 
-  title("Inadimplentes do Mês", `${r.mensais.abertas.length} mensalidade(s) com vencimento em ${fmtMonth(cfg.ref)} ainda em aberto · ${money(r.mensais.aberto)}`);
-  tabela(r.mensais.abertas, "Nenhuma mensalidade em aberto neste mês", true, ["Cliente", "Descrição", "Valor"]);
-  Y = finalY() + 26;
+  title("Inadimplentes do Mês", VERMELHO, `${r.mensais.abertas.length} mensalidade(s) com vencimento em ${fmtMonth(cfg.ref)} ainda em aberto · ${money(r.mensais.aberto)}`);
+  tabela(r.mensais.abertas, "Nenhuma mensalidade em aberto neste mês", VERMELHO, true, ["Cliente", "Descrição", "Valor"]);
 
-  title("Inadimplentes Recebidos", `Mensalidades de meses anteriores recebidas entre ${fmtDate(cfg.cutStart)} e ${fmtDate(cfg.cutEnd)} · ${money(r.inad.total)}`);
-  tabela(r.inad.rows, "Nenhum recebimento atrasado no período", false);
-  Y = finalY() + 26;
+  title("Inadimplentes Recebidos", VERDE, `Mensalidades de meses anteriores recebidas entre ${fmtDate(cfg.cutStart)} e ${fmtDate(cfg.cutEnd)} · ${money(r.inad.total)}`);
+  tabela(r.inad.rows, "Nenhum recebimento atrasado no período", VERDE, false);
 
-  title("Planos Mensais Ativos no Período", `${r.mensais.pagas.length} mensalidade(s) recebidas com vencimento em ${fmtMonth(cfg.ref)} · ${money(r.mensais.recebido)}`);
-  tabela(r.mensais.pagas, "Nenhuma mensalidade recebida neste mês", false);
+  title("Planos Mensais Ativos no Período", AZUL, `${r.mensais.pagas.length} mensalidade(s) recebidas com vencimento em ${fmtMonth(cfg.ref)} · ${money(r.mensais.recebido)}`);
+  tabela(r.mensais.pagas, "Nenhuma mensalidade recebida neste mês", AZUL, false);
 
   const n = doc.getNumberOfPages();
   // Marca d'água: selo recortado em círculo, translúcido, no centro de cada página depois da capa.

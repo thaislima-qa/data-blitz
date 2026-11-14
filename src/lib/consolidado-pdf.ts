@@ -5,18 +5,21 @@ import { fmtDate, fmtMonth, fmtMoney, methodLabel, type Linha, type Relatorio } 
 const money = (v: number) => fmtMoney(v).replace(/ /g, " ");
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
+/** Carrega a imagem; se falhar, devolve null e o PDF sai sem ela em vez de quebrar. */
 const loadImage = (src: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
+  new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => { console.warn("Não consegui carregar a imagem do PDF"); resolve(null); };
     img.src = src;
   });
 
 const shortDesc = (d: string) => d.replace(/\s*\[Moove [^\]]*\]/gi, "").trim() || d;
 
-export async function gerarConsolidadoPDF(r: Relatorio, studio: string, logoCoverSrc: string, logoHeaderSrc: string) {
-  const [cover, logo] = await Promise.all([loadImage(logoCoverSrc), loadImage(logoHeaderSrc)]);
+/** selo: logo quadrado da capa. horizontal: logo largo dos cabeçalhos. Ambos em data URL (import "?inline"). */
+export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc: string, horizontalSrc: string) {
+  const [selo, logo] = await Promise.all([loadImage(seloSrc), loadImage(horizontalSrc)]);
+  const logoRatio = logo ? logo.naturalHeight / logo.naturalWidth : 0.249;
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -28,9 +31,9 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, logoCove
   doc.setFillColor(138, 43, 226); doc.rect(0, 0, W, H / 3, "F");
   doc.setFillColor(99, 25, 181); doc.rect(0, H / 3, W, H / 3, "F");
   doc.setFillColor(79, 15, 150); doc.rect(0, (2 * H) / 3, W, H / 3, "F");
-  const iw = 300, ih = (iw * 418) / 739, ix = (W - iw) / 2, iy = 72;
-  doc.setFillColor(255, 255, 255); doc.rect(ix - 9, iy - 9, iw + 18, ih + 18, "F");
-  doc.addImage(cover, "PNG", ix, iy, iw, ih);
+  const sz = 200, ix = (W - sz) / 2, iy = 58;
+  doc.setFillColor(255, 255, 255); doc.rect(ix - 9, iy - 9, sz + 18, sz + 18, "F");
+  if (selo) doc.addImage(selo, "PNG", ix, iy, sz, sz);
   doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(17);
   doc.text(`Prestação de Contas - ${cfg.sede} - ${fmtMonth(cfg.ref)}`, W / 2, H * 0.64, { align: "center" });
   doc.setFontSize(14); doc.text(studio, W / 2, H * 0.74, { align: "center" });
@@ -39,13 +42,7 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, logoCove
 
   // Resumo
   doc.addPage(); doc.setTextColor(0, 0, 0);
-  try {
-    doc.saveGraphicsState();
-    doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
-    doc.addImage(logo, "PNG", W / 2 - 130, H / 2 - 150, 260, 260);
-    doc.restoreGraphicsState();
-  } catch { /* marca d'água é opcional */ }
-  doc.addImage(logo, "PNG", W - 110, 28, 64, 64);
+  if (logo) doc.addImage(logo, "PNG", W - 40 - 170, 24, 170, 170 * logoRatio);
   doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(`Relatório Consolidado - ${fmtMonth(cfg.ref)}`, 40, 60);
   let y = 112;
   const head = (t: string) => { doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(0, 0, 0); doc.text(t, 40, y); y += 22; };
@@ -72,7 +69,7 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, logoCove
     styles: { fontSize: 7.5, cellPadding: 4, lineColor: [220, 220, 230] as [number, number, number], textColor: [20, 20, 30] as [number, number, number], overflow: "linebreak" as const },
     headStyles: { fillColor: [236, 232, 244] as [number, number, number], textColor: [60, 50, 80] as [number, number, number], fontStyle: "bold" as const },
     margin: { left: 40, right: 40, top: 60, bottom: 40 },
-    didDrawPage: () => { try { doc.addImage(logo, "PNG", W - 80, 14, 36, 36); } catch { /* sem logo */ } },
+    didDrawPage: () => { if (logo) doc.addImage(logo, "PNG", W - 40 - 110, 16, 110, 110 * logoRatio); },
   };
   const finalY = () => (doc as any).lastAutoTable.finalY as number;
   const title = (t: string, extra?: string) => {

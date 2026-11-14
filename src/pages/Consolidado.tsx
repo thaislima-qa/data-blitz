@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import logoPathCover from "@/assets/CT Taiana Lima.png";
-import logoPathHeader from "@/assets/mini-logo.png";
+import logoSelo from "@/assets/taiana-lima-academy-selo.png?inline";
+import logoHorizontal from "@/assets/taiana-lima-academy-horizontal.png?inline";
 import {
   SEDES, addMonths, buildReport, contratoManual, defaultCut, deriveContracts, fmtDate, fmtMonth, fmtMoney,
   linhasDaPlanilha, mergeContracts, mergeRows, methodLabel,
@@ -35,7 +35,7 @@ export default function Consolidado() {
   const [cutStart, setCutStart] = useState("");
   const [cutEnd, setCutEnd] = useState("");
   const [cutTouched, setCutTouched] = useState(false);
-  const [studio, setStudio] = useState("CT Taiana Lima");
+  const [studio, setStudio] = useState("Taiana Lima Academy");
   const [busy, setBusy] = useState(false);
   const [novo, setNovo] = useState({ cliente: "", sede: "Maraponga" as Sede, tipo: "Trimestral" as TipoPlano, start: "", mensal: "", metodo: "PIX/Depósito bancário" });
 
@@ -101,10 +101,10 @@ export default function Consolidado() {
   const baixarPDF = async () => {
     if (!rel) return;
     try {
-      await gerarConsolidadoPDF(rel, studio || "CT Taiana Lima", logoPathCover, logoPathHeader);
-    } catch (e) {
-      console.error(e);
-      toast.error("Não foi possível gerar o PDF");
+      await gerarConsolidadoPDF(rel, studio || "Taiana Lima Academy", logoSelo, logoHorizontal);
+    } catch (e: any) {
+      console.error("Erro ao gerar o PDF do consolidado:", e);
+      toast.error(`Não foi possível gerar o PDF${e?.message ? `: ${e.message}` : ""}`);
     }
   };
 

@@ -41,33 +41,56 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
 
   // Resumo
   doc.addPage(); doc.setTextColor(0, 0, 0);
-  if (logo) doc.addImage(logo, "PNG", W - 40 - 170, 24, 170, 170 * logoRatio);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(`Relatório Consolidado - ${fmtMonth(cfg.ref)}`, 40, 60);
-  let y = 112;
-  const head = (t: string) => { doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(0, 0, 0); doc.text(t, 40, y); y += 22; };
-  const total = (t: string, c: [number, number, number]) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...c); doc.text(t, 56, y); y += 20; };
-  const sub = (t: string) => { doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(0, 0, 0); doc.text(t, 76, y); y += 19; };
-  r.porForma.forEach((f) => {
-    head(`Total Recebido via ${f.forma}: ${money(f.total)}`);
-    sub(`Planos Mensais: ${money(f.mensais)}`);
-    sub(`Planos Trimestrais/Semestrais: ${money(f.planos)}`);
-    y += 8;
-  });
-  y += 2;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(255, 31, 31);
-  doc.text(`Inadimplentes Recebimentos: ${money(r.inad.total)}`, 40, y); y += 25;
-  doc.text(`Valor em Aberto: ${money(r.totais.aberto)}`, 40, y); y += 35;
-  doc.setTextColor(0, 0, 128); doc.setFontSize(15); doc.text(`Total Geral: ${money(r.totais.geral)}`, 40, y); y += 26;
-  doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "italic"); doc.setFontSize(12);
-  doc.text(`Total Distribuição: ${money(r.totais.distribuicao)}*`, 40, y); y += 12;
-  doc.setFontSize(6.5); doc.text("*Valor antes da dedução dos impostos", 40, y);
-  y += 34;
-  doc.setDrawColor(200, 200, 210); doc.setLineWidth(0.6); doc.line(40, y - 14, W - 40, y - 14);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(0, 0, 0);
-  doc.text(`Total de Alunos Ativos: ${r.alunos.ativos}`, 40, y); y += 20;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(0, 100, 0);
-  doc.text(`Adimplentes: ${r.alunos.adimp}`, 56, y); y += 18;
-  doc.setTextColor(255, 31, 31); doc.text(`Inadimplentes: ${r.alunos.inad}`, 56, y);
+  if (logo) doc.addImage(logo, "PNG", W - 40 - 150, 20, 150, 150 * logoRatio);
+  const x0 = 40, wT = W - 80 - 110, wV = 150; // tabela centralizada
+  const mesNome = new Date(`${cfg.ref}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long" });
+  const mesCap = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
+  const curto = `${mesNome.slice(0, 3).toUpperCase()}/${cfg.ref.slice(2, 4)}`;
+  const curtoMin = `${mesNome.slice(0, 3).charAt(0).toUpperCase()}${mesNome.slice(1, 3)}/${cfg.ref.slice(2, 4)}`;
+  const rs = r.resumo;
+  let y = 84;
+  const H1 = 19;
+  type RGB = [number, number, number];
+  const faixa = (txt: string, val: string | null, fill: RGB, txtColor: RGB = [0, 0, 0], bold = true, centro = false) => {
+    doc.setFillColor(...fill); doc.rect(x0, y, wT, H1, "F");
+    doc.setDrawColor(40, 40, 40); doc.setLineWidth(0.5); doc.rect(x0, y, wT, H1);
+    if (val !== null) doc.line(x0 + wT - wV, y, x0 + wT - wV, y + H1);
+    doc.setTextColor(...txtColor); doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(9.5);
+    if (centro) doc.text(txt, x0 + wT / 2, y + 13, { align: "center" });
+    else doc.text(txt, x0 + 6, y + 13);
+    if (val !== null) doc.text(val, x0 + wT - 6, y + 13, { align: "right" });
+    y += H1;
+  };
+  const titulo = (txt: string) => {
+    doc.setFillColor(204, 204, 204); doc.rect(x0, y, wT, 26, "F"); doc.setDrawColor(40, 40, 40); doc.rect(x0, y, wT, 26);
+    doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text(txt, x0 + wT / 2, y + 18, { align: "center" }); y += 26;
+  };
+  const BR = (v: number) => money(v);
+  titulo(`Consolidado ${mesCap} ${cfg.ref.slice(0, 4)} · ${cfg.sede}`);
+  faixa(`MENSALIDADES ${curto}`, BR(rs.mensalidades), [74, 134, 232], [255, 255, 255]);
+  faixa(`Adimplentes ${curtoMin} + Inadimplentes Meses Anteriores`, BR(rs.adimplentesMaisAnteriores), [207, 226, 243]);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60); doc.text("Total Distribuição", x0 + wT + 6, y - 7);
+  faixa("Inadimplentes", BR(rs.inadimplentes), [244, 204, 204]);
+  y += 12;
+  faixa("RECEBIMENTOS (Adimplentes)", null, [0, 255, 0], [0, 0, 0], true, true);
+  faixa("Recebimentos via Cartão", BR(rs.cartao), [255, 255, 255], [0, 0, 0], false);
+  faixa("Recebimentos via PIX & Dinheiro", BR(rs.pixDinheiro), [255, 255, 255], [0, 0, 0], false);
+  faixa("Recebimentos Inadimplentes Meses Anteriores", BR(rs.inadAnteriores), [255, 255, 255], [0, 0, 0], false);
+  y += 12;
+  faixa("DESCONTOS", null, [255, 0, 0], [255, 255, 255], true, true);
+  faixa(`Taxa Cartão (${String(rs.taxaPct).replace(".", ",")}%)`, BR(rs.taxaCartao), [255, 255, 255], [0, 0, 0], false);
+  faixa(`Impostos (Simples Nacional ${String(rs.impostoPct).replace(".", ",")}%)*`, BR(rs.impostos), [255, 255, 255], [0, 0, 0], false);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(60, 60, 60);
+  doc.text("* Alíquota sujeita a alteração a depender do faturamento anual", x0 + wT + 6, y - 14, { maxWidth: 100 });
+  y += 12;
+  faixa("Valor a distribuir (Recebimentos - Descontos)", BR(rs.valorDistribuir), [39, 78, 19], [255, 255, 255]);
+  const cores: RGB[] = [[153, 0, 255], [61, 133, 198], [230, 145, 56], [106, 168, 79]];
+  rs.partes.forEach((pt, i) => faixa(`${pt.nome} (${String(pt.pct).replace(".", ",")}%)`, BR(pt.valor), cores[i % cores.length], [255, 255, 255]));
+  y += 12;
+  const cinza: RGB = [102, 102, 102];
+  faixa(`Alunos ativos em ${curtoMin}`, String(r.alunos.ativos), cinza, [255, 255, 255]);
+  faixa(`Alunos adimplentes`, String(r.alunos.adimp), cinza, [255, 255, 255]);
+  faixa(`Alunos inadimplentes`, String(r.alunos.inad), cinza, [255, 255, 255]);
   doc.setFillColor(0, 0, 128); doc.rect(40, H - 52, W - 80, 4, "F");
 
   // Detalhes

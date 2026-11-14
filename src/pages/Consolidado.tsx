@@ -35,6 +35,13 @@ export default function Consolidado() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [arquivos, setArquivos] = useState<Arquivo[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [ignorados, setIgnorados] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("consolidado.ignorados") ?? "[]"); } catch { return []; }
+  });
+  const guardarIgnorados = (next: string[]) => {
+    setIgnorados(next);
+    try { localStorage.setItem("consolidado.ignorados", JSON.stringify(next)); } catch { /* ignora */ }
+  };
   const [sede, setSede] = useState<Sede>("Maraponga");
   const [ref, setRef] = useState("");
   const [cutStart, setCutStart] = useState("");
@@ -80,7 +87,7 @@ export default function Consolidado() {
         lidos.push({ name: f.name, rows: linhas, headers: cabecalhos(matriz) });
       }
       const todas = mergeRows(lidos.map((a) => a.rows));
-      const novos = deriveContracts(todas);
+      const novos = deriveContracts(todas).filter((c) => !ignorados.includes(c.key));
       const mesclados = mergeContracts(contratos, novos);
       const chaves = new Set(novos.map((c) => c.key));
       await salvarContratos(mesclados.filter((c) => chaves.has(c.key)));
@@ -113,8 +120,8 @@ export default function Consolidado() {
   };
 
   const rel = useMemo(
-    () => (ref && rows.length ? buildReport(rows, { sede, ref, cutStart, cutEnd, taxaCartao: num(taxa, 2.7), imposto: num(imposto, 6), partes: [{ nome: nomeA, pct: num(pctA, 55) }, { nome: nomeB, pct: 100 - num(pctA, 55) }] }, contratos) : null),
-    [rows, sede, ref, cutStart, cutEnd, contratos, taxa, imposto, nomeA, nomeB, pctA],
+    () => (ref && rows.length ? buildReport(rows, { sede, ref, cutStart, cutEnd, taxaCartao: num(taxa, 2.7), imposto: num(imposto, 6), partes: [{ nome: nomeA, pct: num(pctA, 55) }, { nome: nomeB, pct: 100 - num(pctA, 55) }], ignorar: ignorados }, contratos) : null),
+    [rows, sede, ref, cutStart, cutEnd, contratos, taxa, imposto, nomeA, nomeB, pctA, ignorados],
   );
 
   const guardarColunas = (next: string[]) => {
@@ -163,6 +170,7 @@ export default function Consolidado() {
     try {
       await salvarContratos([c]);
       setContratos((prev) => mergeContracts(prev, [c]));
+      if (ignorados.includes(c.key)) guardarIgnorados(ignorados.filter((k) => k !== c.key));
       setNovo((n) => ({ ...n, cliente: "", mensal: "" }));
       toast.success("Contrato adicionado.");
     } catch {
@@ -175,6 +183,7 @@ export default function Consolidado() {
     try {
       await removerContrato(c.key);
       setContratos((prev) => prev.filter((x) => x.key !== c.key));
+      if (!ignorados.includes(c.key)) guardarIgnorados([...ignorados, c.key]);
     } catch {
       toast.error("Não foi possível remover o contrato.");
     }
@@ -342,6 +351,12 @@ export default function Consolidado() {
               <CardHeader>
                 <CardTitle className="text-base">Contratos de planos guardados ({contratos.length})</CardTitle>
                 <p className="text-sm text-muted-foreground">Gravados no Supabase a cada planilha enviada e usados nos meses seguintes. Adicione à mão os planos que começaram antes de usar o sistema.</p>
+                {ignorados.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {ignorados.length} contrato(s) removido(s) não voltam da planilha.{" "}
+                    <button type="button" className="underline" onClick={() => guardarIgnorados([])}>Restaurar todos</button> (vale na próxima planilha enviada)
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 {contratos.length > 0 && (

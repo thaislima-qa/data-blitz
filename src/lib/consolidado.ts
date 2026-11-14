@@ -72,6 +72,7 @@ export interface Config {
   taxaCartao?: number; // % (padrão 2,7)
   imposto?: number; // % (padrão 6)
   partes?: { nome: string; pct: number }[]; // divisão do valor a distribuir
+  ignorar?: string[]; // chaves de contratos removidos pela usuária (não voltam a partir da planilha)
 }
 
 export const PARTES_PADRAO = [{ nome: 'CT Taiana Lima', pct: 55 }, { nome: 'Arena Moove', pct: 45 }];
@@ -332,7 +333,8 @@ export function buildReport(allRows: Linha[], cfg: Config, saved: Contrato[] = [
   const prevFora = prev.filter((r) => !isOpen(r) && r.rec && r.rec >= refStart && !(r.rec >= cutStart && r.rec <= cutEnd));
   const prevAberto = prev.filter(isOpen);
 
-  const contratos = mergeContracts(saved, deriveContracts(allRows));
+  const ignorar = new Set(cfg.ignorar ?? []);
+  const contratos = mergeContracts(saved, deriveContracts(allRows)).filter((c) => !ignorar.has(c.key));
   const best = new Map<string, Contrato>();
   contratos.forEach((g) => {
     if (g.sede !== cfg.sede) return;

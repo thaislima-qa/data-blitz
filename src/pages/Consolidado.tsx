@@ -274,8 +274,10 @@ export default function Consolidado() {
                     <p className="text-sm text-muted-foreground">Recebimentos atrasados de {fmtDate(rel.cfg.cutStart)} a {fmtDate(rel.cfg.cutEnd)}</p>
                   </CardHeader>
                   <CardContent className="space-y-4 max-w-xl">
-                    <Bloco titulo="Planos Mensais · total recebido" valor={rel.mensais.recebido} cor="pos" itens={rel.mensais.porMetodo} />
-                    <Bloco titulo="Planos Ativos · total recebido" valor={rel.planos.recebido} cor="pos" itens={rel.planos.porMetodo} />
+                    {rel.porForma.map((f) => (
+                      <Bloco key={f.forma} titulo={`Total recebido via ${f.forma}`} valor={f.total} cor="pos"
+                        itens={[["Planos Mensais", f.mensais], ["Planos Trimestrais/Semestrais", f.planos]]} />
+                    ))}
                     <Bloco titulo="Inadimplentes recebimentos" valor={rel.inad.total} cor="pos" />
                     <Bloco titulo="Valor em aberto" valor={rel.totais.aberto} cor="neg" />
                     <div className="flex justify-between text-2xl font-bold text-primary border-t pt-3"><span>Total Geral</span><span>{fmtMoney(rel.totais.geral)}</span></div>
@@ -309,7 +311,7 @@ export default function Consolidado() {
                   </CardContent>
                 </Card>
 
-                <TabelaLinhas titulo="Inadimplentes do Mês" sub={`${rel.mensais.abertas.length} mensalidade(s) com vencimento em ${fmtMonth(rel.cfg.ref)} ainda em aberto · ${fmtMoney(rel.mensais.aberto)}`} linhas={rel.mensais.abertas} colunas={colunas} vermelho />
+                <TabelaLinhas titulo="Inadimplentes do Mês" sub={`${rel.mensais.abertas.length} mensalidade(s) com vencimento em ${fmtMonth(rel.cfg.ref)} ainda em aberto · ${fmtMoney(rel.mensais.aberto)}`} linhas={rel.mensais.abertas} colunas={["Cliente", "Descrição", "Valor"]} vermelho />
                 <TabelaLinhas titulo="Inadimplentes Recebidos" sub={`Mensalidades de meses anteriores recebidas entre ${fmtDate(rel.cfg.cutStart)} e ${fmtDate(rel.cfg.cutEnd)} · ${fmtMoney(rel.inad.total)}`} linhas={rel.inad.rows} colunas={colunas} />
                 <TabelaLinhas titulo="Planos Mensais Ativos no Período" sub={`${rel.mensais.pagas.length} mensalidade(s) recebidas com vencimento em ${fmtMonth(rel.cfg.ref)}, incluindo as pagas depois do fim do mês · ${fmtMoney(rel.mensais.recebido)}`} linhas={rel.mensais.pagas} colunas={colunas} />
 

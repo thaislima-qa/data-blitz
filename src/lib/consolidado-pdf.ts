@@ -47,10 +47,13 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   const head = (t: string) => { doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(0, 0, 0); doc.text(t, 40, y); y += 22; };
   const total = (t: string, c: [number, number, number]) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...c); doc.text(t, 56, y); y += 20; };
   const sub = (t: string) => { doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(0, 0, 0); doc.text(t, 76, y); y += 19; };
-  head("Planos Mensais:"); total(`Total Recebido: ${money(r.mensais.recebido)}`, [0, 100, 0]);
-  r.mensais.porMetodo.forEach(([m, v]) => sub(`${m}: ${money(v)}`)); y += 8;
-  head("Planos Ativos:"); total(`Total Recebido: ${money(r.planos.recebido)}`, [0, 100, 0]);
-  r.planos.porMetodo.forEach(([m, v]) => sub(`${m}: ${money(v)}`)); y += 10;
+  r.porForma.forEach((f) => {
+    head(`Total Recebido via ${f.forma}: ${money(f.total)}`);
+    sub(`Planos Mensais: ${money(f.mensais)}`);
+    sub(`Planos Trimestrais/Semestrais: ${money(f.planos)}`);
+    y += 8;
+  });
+  y += 2;
   doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(255, 31, 31);
   doc.text(`Inadimplentes Recebimentos: ${money(r.inad.total)}`, 40, y); y += 25;
   doc.text(`Valor em Aberto: ${money(r.totais.aberto)}`, 40, y); y += 35;
@@ -95,20 +98,23 @@ export async function gerarConsolidadoPDF(r: Relatorio, studio: string, seloSrc:
   Y = finalY() + 26;
 
   // Valores e datas com largura fixa para não quebrar em duas linhas.
-  const colStyles: Record<number, { halign?: "right"; cellWidth: number }> = {};
-  colunas.forEach((c, i) => {
-    if (colunaNumerica(c)) colStyles[i] = { halign: "right", cellWidth: 64 };
-    else if (norm(c).startsWith("data")) colStyles[i] = { cellWidth: 58 };
-  });
-  const tabela = (linhas: Linha[], vazio: string, vermelho: boolean) =>
+  const estilos = (cols: string[]) => {
+    const st: Record<number, { halign?: "right"; cellWidth: number }> = {};
+    cols.forEach((c, i) => {
+      if (colunaNumerica(c)) st[i] = { halign: "right", cellWidth: 64 };
+      else if (norm(c).startsWith("data")) st[i] = { cellWidth: 58 };
+    });
+    return st;
+  };
+  const tabela = (linhas: Linha[], vazio: string, vermelho: boolean, cols: string[] = colunas) =>
     autoTable(doc, {
-      ...common, startY: Y + 4, columnStyles: colStyles, head: [colunas],
-      body: linhas.length ? linhas.map((x) => colunas.map((c) => celula(x, c))) : [[vazio, ...colunas.slice(1).map(() => "")]],
+      ...common, startY: Y + 4, columnStyles: estilos(cols), head: [cols],
+      body: linhas.length ? linhas.map((x) => cols.map((c) => celula(x, c))) : [[vazio, ...cols.slice(1).map(() => "")]],
       didParseCell: (d) => { if (vermelho && d.section === "body" && linhas.length) d.cell.styles.textColor = [196, 36, 36]; },
     });
 
   title("Inadimplentes do Mês", `${r.mensais.abertas.length} mensalidade(s) com vencimento em ${fmtMonth(cfg.ref)} ainda em aberto · ${money(r.mensais.aberto)}`);
-  tabela(r.mensais.abertas, "Nenhuma mensalidade em aberto neste mês", true);
+  tabela(r.mensais.abertas, "Nenhuma mensalidade em aberto neste mês", true, ["Cliente", "Descrição", "Valor"]);
   Y = finalY() + 26;
 
   title("Inadimplentes Recebidos", `Mensalidades de meses anteriores recebidas entre ${fmtDate(cfg.cutStart)} e ${fmtDate(cfg.cutEnd)} · ${money(r.inad.total)}`);

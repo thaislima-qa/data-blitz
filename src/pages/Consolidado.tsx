@@ -287,7 +287,6 @@ export default function Consolidado() {
                     <p className="text-sm text-muted-foreground">Recebimentos atrasados de {fmtDate(rel.cfg.cutStart)} a {fmtDate(rel.cfg.cutEnd)}</p>
                   </CardHeader>
                   <CardContent className="space-y-4 max-w-xl">
-                    <Bloco titulo={`Mensalidades ${fmtMonth(rel.cfg.ref)}`} valor={rel.resumo.mensalidades} cor="pos" />
                     <Bloco titulo="Adimplentes + inadimplentes meses anteriores (Total Distribuição)" valor={rel.resumo.adimplentesMaisAnteriores} cor="pos" />
                     <Bloco titulo="Inadimplentes" valor={rel.resumo.inadimplentes} cor="neg" />
                     <Bloco titulo="Recebimentos (adimplentes)" valor={rel.resumo.cartao + rel.resumo.pixDinheiro + rel.resumo.inadAnteriores} cor="pos"

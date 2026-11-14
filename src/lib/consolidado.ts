@@ -75,6 +75,7 @@ export interface Relatorio {
   cfg: Config;
   mensais: { rows: Linha[]; pagas: Linha[]; abertas: Linha[]; recebido: number; porMetodo: [string, number][]; aberto: number; nAberto: number };
   inad: { rows: Linha[]; total: number };
+  porForma: { forma: string; total: number; mensais: number; planos: number }[];
   planos: { rows: PlanoAtivo[]; recebido: number; porMetodo: [string, number][]; nTri: number; nSem: number; nAnu: number };
   alunos: { ativos: number; adimp: number; inad: number };
   totais: { aberto: number; distribuicao: number; geral: number };
@@ -146,6 +147,13 @@ export function detectTipo(desc: string): Tipo {
   if (/trimestral/.test(n)) return 'Trimestral';
   if (/\banual\b/.test(n)) return 'Anual';
   return 'Outro';
+}
+
+export function formaPagamento(m: string): 'pix' | 'cartao' | 'outros' {
+  const n = norm(m);
+  if (/pix|deposito|transfer/.test(n)) return 'pix';
+  if (/cart/.test(n)) return 'cartao';
+  return 'outros';
 }
 
 export function methodLabel(m: string, plan: boolean): string {
@@ -341,9 +349,15 @@ export function buildReport(allRows: Linha[], cfg: Config, saved: Contrato[] = [
   const tInad = sum(inad, (r) => r.recebido);
   const tAb = Math.round((sum(mensAb, (r) => r.valor) + sum(plAb, (p) => p.valor)) * 100) / 100;
   const semSede = allRows.filter((r) => !r.sede);
+  const porForma = (['pix', 'cartao', 'outros'] as const).map((f) => {
+    const mensais = Math.round(sum(mensRec.filter((r) => formaPagamento(r.metodo) === f), (r) => r.recebido) * 100) / 100;
+    const planosV = Math.round(sum(plRec.filter((p) => formaPagamento(p.metodo) === f), (p) => p.valor) * 100) / 100;
+    return { forma: f === 'pix' ? 'Pix' : f === 'cartao' ? 'Cartão' : 'Outras formas', total: Math.round((mensais + planosV) * 100) / 100, mensais, planos: planosV };
+  }).filter((x, i) => i < 2 || x.total > 0);
 
   return {
     cfg,
+    porForma,
     mensais: { rows: mens, pagas: mensRec, abertas: mensAb, recebido: tMens, porMetodo: groupSum(mensRec, (r) => methodLabel(r.metodo, false), (r) => r.recebido), aberto: sum(mensAb, (r) => r.valor), nAberto: mensAb.length },
     inad: { rows: inad, total: tInad },
     planos: {

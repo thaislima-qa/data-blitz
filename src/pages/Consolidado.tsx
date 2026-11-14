@@ -125,10 +125,23 @@ export default function Consolidado() {
     guardarColunas(next);
   };
 
+  const [pdfPronto, setPdfPronto] = useState<{ url: string; nome: string } | null>(null);
+
   const baixarPDF = async () => {
     if (!rel) return;
     try {
-      await gerarConsolidadoPDF(rel, studio || "Taiana Lima Academy", logoSelo, logoHorizontal, colunas);
+      const { blob, nome } = await gerarConsolidadoPDF(rel, studio || "Taiana Lima Academy", logoSelo, logoHorizontal, colunas);
+      setPdfPronto((antigo) => {
+        if (antigo) URL.revokeObjectURL(antigo.url);
+        return { url: URL.createObjectURL(blob), nome };
+      });
+      // tentativa automática; se o navegador bloquear, os botões abaixo continuam funcionando
+      try {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = nome;
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch { /* ignora */ }
+      toast.success("PDF gerado. Se o download não iniciar, use os botões abaixo.");
     } catch (e: any) {
       console.error("Erro ao gerar o PDF do consolidado:", e);
       toast.error(`Não foi possível gerar o PDF${e?.message ? `: ${e.message}` : ""}`);
@@ -209,6 +222,19 @@ export default function Consolidado() {
                 <Input id="studio" value={studio} onChange={(e) => setStudio(e.target.value)} />
               </div>
               <Button className="w-full" disabled={!rel} onClick={baixarPDF}><FileDown className="h-4 w-4 mr-2" />Baixar PDF</Button>
+              {pdfPronto && (
+                <div className="mt-2 space-y-1 rounded-md border p-2 text-xs">
+                  <p className="text-muted-foreground">PDF pronto: {pdfPronto.nome}</p>
+                  <div className="flex gap-2">
+                    <Button asChild size="sm" variant="secondary" className="flex-1">
+                      <a href={pdfPronto.url} download={pdfPronto.nome}>Salvar arquivo</a>
+                    </Button>
+                    <Button asChild size="sm" variant="outline" className="flex-1">
+                      <a href={pdfPronto.url} target="_blank" rel="noopener noreferrer">Abrir em nova aba</a>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card className="h-fit">

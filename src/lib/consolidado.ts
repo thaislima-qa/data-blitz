@@ -156,10 +156,10 @@ export function detectSede(desc: string): Sede | null {
 
 export function detectTipo(desc: string): Tipo {
   const n = norm(desc);
-  if (/plano mensal/.test(n)) return 'Mensal';
   if (/semestral/.test(n)) return 'Semestral';
   if (/trimestral/.test(n)) return 'Trimestral';
   if (/\banual\b/.test(n)) return 'Anual';
+  if (/\bmensal\b/.test(n)) return 'Mensal'; // "Plano Mensal ..." e também "Funcional [1x] [Mensal]"
   return 'Outro';
 }
 
